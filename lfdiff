@@ -1,0 +1,72 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+#-------- constants --------
+my $splitsize = (2*1024*1024*1024);
+#------- /constants --------
+
+
+if ($#ARGV+1 < 2) {
+    print "usage: $0 [-f] [-o OUTPUT] INPUT1 INPUT2\n";
+    print "\t-f: force overwriting\n";
+    print "\t-o: write output to OUTFILE instead of stdout\n";
+    exit 1;
+}
+
+
+
+my $fileA = $ARGV[0];
+my $fileB = $ARGV[1];
+
+if ($fileA eq $fileB) {
+    print "$0: error input files same\n";
+    exit 1;
+}
+
+# split files
+print "splitting $fileA\n";
+#system("split --line-bytes=$splitsize $fileA ${fileA}.x >&2");
+print "splitting $fileB\n";
+#system("split --line-bytes=$splitsize $fileB ${fileB}.x >&2");
+
+# diff the splitted files
+# and remove the splits after saving the diffs
+for my $A ('a'..'z') {
+    for my $B ('a'..'z') {
+        print "$A$B";
+        my $splitA = "$fileA$A$B";
+        my $splitB = "$fileB$A$B";
+        my $diff = "$fileA$A$B.diff";
+        if ( -f $splitA and -f $splitB ) {
+            if ( -f $diff ) {
+                print "error: $diff exists. Use -f to force writing\n";
+                exit 1;
+            }
+            system("diff --speed-large-files $splitA $splitB > $diff");
+            unlink ($splitA);
+            unlink ($splitB);           
+        }
+        elsif (-f $splitA ) {
+            system("diff --speed-large-files $splitA /dev/null > $diff");
+            unlink ($splitA);
+        }
+        elsif (-f $splitB ) {
+            system("diff --speed-large-files /dev/null $splitB > $diff");
+            unlink ($splitB);           
+        }
+        else {
+            last;
+        }
+        
+        # correct the line numbers and push diff to output
+        open(DIFF, "<", $diff) || die "$0: could not open $diff: $!";
+        while (<DIFF>) {
+            print $_;
+        }
+        close(DIFF);
+    }
+}
+
+
