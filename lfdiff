@@ -18,14 +18,39 @@
 use warnings;
 use strict;
 use Getopt::Std;
+use Fcntl qw(SEEK_SET SEEK_CUR SEEK_END); #SEEK_SET=0 SEEK_CUR=1 ...
+
+# Algorithmus:
+# 1)
+# Split INPUT1 und INPUT2 auf ganze Zeilen von insgesamt $splitsize Dateigröße.
+# Erzeuge eine Diffausgabe auf die Splits.
+# Analysiere die Diffausgabe.
+# Übernehme alle Diffs aus der Ausgabedatei und setze den Start für den
+# nächsten Split auf die jeweils letzte Diffzeile von INPUT1 und INPUT2.
+# Wenn der Diff an der letzten Zeile der Diffausgabe endet, schneide den
+# letzten Diff aus der Ausgabe heraus und speichere alle übrigen Diffs. In dem
+# Fall setze den Start für den nächsten Split auf die letzte Zeile des
+# vorletzen Diffs.
+# Gehe zu 1)
+# Prüfe die Ausgabe, indem aus INPUT1 und Diff eine Datei erzeugt wird, die mit
+# INPUT2 identisch ist.
+
+
 
 #-------- constants --------
 my $splitsize = (2*1024*1024*1024);
 #------- /constants --------
 
+my $beverbose;
+
 sub printerr
 {
   print STDERR "@_";
+}
+
+sub printverb
+{
+    printerr @_ if defined $beverbose and $beverbose != 0;
 }
 
 sub usage {
@@ -45,6 +70,33 @@ sub errorexit {
   exit 1;
 }
 
+
+# split a file in parts.
+# Start at 'offset', chewing at max 'maxbytes' bytes, store only full files
+# including line end marker.
+sub filesplit($$$$) {
+    my ($infilename, $outfilename, $maxbytes, $offset) = @_;
+    my $len = 0;
+    my $strlen;
+    my $lines = 0;
+
+    open (INPUT, "<", $infilename) || die "error: can not open '$infilename' for reading: $!";
+    open (OUTPUT, ">", $outfilename) || die "error: can not open '$outfilename' for writing: $!";
+    seek(INPUT, $offset, SEEK_SET);
+    while (<INPUT>) {
+        $strlen = y===c;
+        last if ($len + $strlen > $maxbytes);
+        $len += $strlen; #bytes::length;
+        print OUTPUT $_;
+        $lines++;
+    }
+    close(OUTPUT);
+    close(INPUT);
+
+    return ($len,$lines);
+}
+
+
 my %args;
 #$Getopt::Std::STANDARD_HELP_VERSION = 1;
 if (getopts( 'ho:vf', \%args )) {
@@ -63,7 +115,7 @@ if (defined $filename) {
 }
 
 my $useforce = $args{f};
-my $beverbose = $args{v};
+$beverbose = $args{v};
 
 if ($#ARGV+1 < 2) {
     errorexit "error: missing input files\n";
@@ -76,47 +128,106 @@ if ($fileA eq $fileB) {
     errorexit "error: input files are same\n";
 }
 
+my $lenA = 0;
+my $lenB = 0;
+my $linesA = 0;
+my $linesB = 0;
+
 # split files
-printerr "splitting $fileA\n";
-system("split --line-bytes=$splitsize $fileA ${fileA}.x >&2");
-printerr "splitting $fileB\n";
-system("split --line-bytes=$splitsize $fileB ${fileB}.x >&2");
+#printerr "splitting $fileA\n";
+#system("split --line-bytes=$splitsize $fileA ${fileA}.x >&2");
+OUTER: for my $A ('a'..'z') {
+    for my $B ('a'..'z') {
+        my $splitA = "${fileA}.y$A$B";
+        my $splitB = "${fileB}.y$A$B";
+        printverb "splitting $splitA\n";
+        my ($mylen,$mylinesA) = filesplit($fileA, $splitA, $splitsize, $lenA);
+        last OUTER if $mylen < 1;
+        $lenA += $mylen;
+
+        printverb "splitting $splitB\n";
+        my $mylinesB;
+        ($mylen,$mylinesB) = filesplit($fileB, $splitB, $splitsize, $lenB);
+        last OUTER if $mylen < 1;
+        $lenB += $mylen;
+
+        my $diff = "${splitB}.diff";
+        if ( -f $diff and not $useforce ) {
+            errorexit "error: $diff exists. Use -f to force writing\n";
+        }
+        printverb "diffing $splitA ($mylinesA) - $splitB ($mylinesB) into $diff\n";
+        system("diff --speed-large-files $splitA $splitB > $diff");
+        unlink $splitA, $splitB; # remove temp files
+
+        printverb "analyzing diff\n";
+        open (DIFF, "<", $diff) || die "error: can not open '$diff' for reading: $!";
+        while (<DIFF>) {
+            if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
+                if ($3 eq 'a') {
+                    printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                elsif ($3 eq 'c') {
+                    printverb "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                elsif ($3 eq 'd') {
+                    printverb "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                # add line number of previous runs onto line number from diff
+                print ''.($1+$linesA).($2?",".($2+$linesA):'').$3.($4+$linesB).($5?",".($5+$linesB):'')."\n";
+            }
+            else {
+                print;
+            }
+        }
+        close DIFF;
+        unlink $diff; # remove temp file
+
+        $linesA += $mylinesA;
+        $linesB += $mylinesB;
+
+#        last OUTER if $B eq 'c'; # Test code
+    }
+}
+
+#printerr "splitting $fileB\n";
+#system("split --line-bytes=$splitsize $fileB ${fileB}.x >&2");
 
 # diff the splitted files
 # and remove the splits after saving the diffs
-for my $A ('a'..'z') {
-    for my $B ('a'..'z') {
-        printerr "$A$B";
-        my $splitA = "${fileA}.x$A$B";
-        my $splitB = "${fileB}.x$A$B";
-        my $diff = "${fileB}.x$A$B.diff";
-        if ( -f $splitA and -f $splitB ) {
-            if ( -f $diff ) {
-                errorexit "error: $diff exists. Use -f to force writing\n";
-            }
-            system("diff --speed-large-files $splitA $splitB > $diff");
-            unlink ($splitA);
-            unlink ($splitB);           
-        }
-        elsif (-f $splitA ) {
-            system("diff --speed-large-files $splitA /dev/null > $diff");
-            unlink ($splitA);
-        }
-        elsif (-f $splitB ) {
-            system("diff --speed-large-files /dev/null $splitB > $diff");
-            unlink ($splitB);           
-        }
-        else {
-            last;
-        }
-        
-        # correct the line numbers and push diff to output
-#        open(DIFF, "<", $diff) || die "$0: could not open $diff: $!";
-#        while (<DIFF>) {
-#            print $_;
+#for my $A ('a'..'z') {
+#    for my $B ('a'..'z') {
+#        printerr "$A$B";
+#        my $splitA = "${fileA}.x$A$B";
+#        my $splitB = "${fileB}.x$A$B";
+#        my $diff = "${fileB}.x$A$B.diff";
+##        if ( -f $splitA and -f $splitB ) {
+#        if ( -f $splitA or -f $splitB ) {
+#            if ( -f $diff ) {
+#                errorexit "error: $diff exists. Use -f to force writing\n";
+#            }
+#            system("diff --speed-large-files $splitA $splitB > $diff");
+##            unlink ($splitA);
+##            unlink ($splitB);           
 #        }
-#        close(DIFF);
-    }
-}
+##        elsif (-f $splitA ) {
+##            system("diff --speed-large-files $splitA /dev/null > $diff");
+##            unlink ($splitA);
+##        }
+##        elsif (-f $splitB ) {
+##            system("diff --speed-large-files /dev/null $splitB > $diff");
+##            unlink ($splitB);           
+##        }
+#        else {
+#            last;
+#        }
+#        
+#        # correct the line numbers and push diff to output
+##        open(DIFF, "<", $diff) || die "$0: could not open $diff: $!";
+##        while (<DIFF>) {
+##            print $_;
+##        }
+##        close(DIFF);
+#    }
+#}
 
 
