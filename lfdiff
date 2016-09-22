@@ -24,7 +24,7 @@ use Tie::File;
 
 
 #-------- constants --------
-my $mem_cache = (2*1024*1024*1024); #2GB
+my $default_mem_cache = (2*1024*1024*1024); #2GB
 #------- /constants --------
 
 my $beverbose;
@@ -42,9 +42,10 @@ sub printverb
 sub usage {
   printerr <<EOL;
 usage:
-lfdiff [-h] [-v] [-f] [-o OUTPUT] INPUT1 INPUT2
+lfdiff [-h] [-v] [-f] [-o OUTPUT] [-m MEM] INPUT1 INPUT2
 \t-f: force overwriting
 \t-o: write output to OUTFILE instead of stdout
+\t-m: use MEM bytes for file caching (default:$default_mem_cache)
 \t-v: be verbose
 \t-h: print usage
 EOL
@@ -60,7 +61,7 @@ sub errorexit {
 
 my %args;
 #$Getopt::Std::STANDARD_HELP_VERSION = 1;
-if (getopts( 'ho:vf', \%args )) {
+if (getopts( 'ho:vfm:', \%args )) {
 #  errorexit "error parsing commandline\n";
 }
 
@@ -69,6 +70,7 @@ if (defined $args{h} and $args{h} ne '') {
     exit 0;
 }
 
+my $mem_cache = $args{m} || $default_mem_cache;
 my $useforce = $args{f};
 my $filename = $args{o};
 if (defined $filename) {
