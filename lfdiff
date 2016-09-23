@@ -70,9 +70,24 @@ if (defined $args{h} and $args{h} ne '') {
     exit 0;
 }
 
+
+$beverbose = $args{v};
 my $mem_cache = $args{m} || $default_mem_cache;
 my $useforce = $args{f};
 my $filename = $args{o};
+
+if ($#ARGV+1 < 2) {
+    errorexit "error: missing input files\n";
+}
+
+my $fileA = $ARGV[0];
+my $fileB = $ARGV[1];
+
+if ($fileA eq $fileB) {
+    errorexit "error: input files are same\n";
+}
+
+
 if (defined $filename) {
     # redirect STDOUT to file
     if (not open (STDOUT, ">", $filename)) {
@@ -84,20 +99,6 @@ if (defined $filename) {
             die "Unable to open file '$filename': $!";
         }
     }
-}
-
-
-$beverbose = $args{v};
-
-if ($#ARGV+1 < 2) {
-    errorexit "error: missing input files\n";
-}
-
-my $fileA = $ARGV[0];
-my $fileB = $ARGV[1];
-
-if ($fileA eq $fileB) {
-    errorexit "error: input files are same\n";
 }
 
 
