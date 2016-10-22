@@ -21,7 +21,9 @@ use Getopt::Std;
 use Fcntl qw(SEEK_SET SEEK_CUR SEEK_END O_RDONLY); #SEEK_SET=0 SEEK_CUR=1 ...
 use Text::Diff;
 use Tie::File;
-
+use Algorithm::Diff qw( diff );
+use Data::Dumper;
+use v5.10;   # uses specific code for version 5.10: "$ref->[$_] //= '' for 0 .. $#$ref;"
 
 #-------- constants --------
 my $default_mem_cache = (2*1024*1024*1024); #2GB
@@ -55,6 +57,17 @@ sub errorexit {
   printerr @_;
   usage;
   exit 1;
+}
+
+
+# return the maximum line number which is below the given cumulative bytes
+sub get_max_line_for_bytes {
+	my $arr_ref = shift;
+	my $start_line = shift;
+	my $max_bytes = shift;
+
+
+	return ($max_bytes / 200); # each line got 200 bytes on average
 }
 
 
@@ -110,7 +123,113 @@ tie @array_b, 'Tie::File', $fileB, autochomp => 0, mode => O_RDONLY, memory => $
 #, mode => O_RDONLY
 #, memory => 20_000_000
 
+my @part_array_a = @array_a[0..999];
+my @part_array_b = @array_b[0..999];
+
 printverb "diffing '$fileA' and '$fileB'".(defined $filename?" into '$filename'":'')."\n";
-my $diff = diff \@array_a,  \@array_b, { STYLE => "OldStyle", OUTPUT => \*STDOUT };
+my @virtual_file_a;
+my @virtual_file_b;
+my @diff;
+@diff = Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
+print Dumper(\@diff);
+
+#@part_array_a = @array_a[1001..2000];
+#@part_array_b = @array_b[1001..2000];
+#push @diff, Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
+#
+
+
+# Dumper(\@diff) :
+# $VAR1 = [             # @diff
+#          [            # $splitdiff, @diffblock
+#            [          # $diffsplit, @diffsplit
+#              '-',     # $diffsplit[0], $prefix
+#              638,     # $diffsplit[1], $line
+#              '                         bandbreite_neu = 100
+#'                      # $diffsplit[2], $value
+#            ],
+#            [
+#              '+',
+#              639,
+#              '                         bandbreite_neu_vectoring = 100
+#'
+#            ]
+#          ],
+#         ]
+
+my $maxdiffline = 0;
+foreach my $splitdiff (@diff) {
+    my @diffblock = @{$splitdiff};
+    foreach my $diffsplit (@diffblock) {
+        my @diffsplit = @{$diffsplit};
+        my ($prefix, $line, $value) = @diffsplit;
+        if ($prefix eq '-') {
+            $virtual_file_a[$line] = $value;
+        }
+        elsif ($prefix eq '+') {
+            $virtual_file_b[$line] = $value;
+        }
+        else {
+            errorexit "unknown prefix in diff data array found: '$prefix'\n";
+        }
+        $maxdiffline = $line if $line > $maxdiffline;
+    }
+}
+
+
+
+@part_array_a = @array_a[1000..1999];
+@part_array_b = @array_b[1000..1999];
+@diff = Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
+print Dumper(\@diff);
+
+my $lineoffset = 1000;
+foreach my $splitdiff (@diff) {
+    my @diffblock = @{$splitdiff};
+    foreach my $diffsplit (@diffblock) {
+        my @diffsplit = @{$diffsplit};
+        my ($prefix, $line, $value) = @diffsplit;
+        $line += $lineoffset;
+        if ($prefix eq '-') {
+            $virtual_file_a[$line] = $value;
+        }
+        elsif ($prefix eq '+') {
+            $virtual_file_b[$line] = $value;
+        }
+        else {
+            errorexit "unknown prefix in diff data array found: '$prefix'\n";
+        }
+        $maxdiffline = $line if $line > $maxdiffline;
+    }
+}
+
+
+
+
+
+# assign empty values to the undef array slots
+# make both arrays same size with $maxdiffline
+for my $ref (\@virtual_file_a, \@virtual_file_b) {
+#  $ref->[$_] //= "\n" for 0 .. $#$ref;
+#  $ref->[$_] //= "\n" for 0 .. $maxdiffline;
+  $ref->[$_] //= "" for 0 .. $maxdiffline;
+}
+
+
+#open FILE, ">", "dump_mwgeo-201609210500.sql.split10000.zz" or die "$!";
+#foreach my $line (@virtual_file_a) {
+#    print FILE $line;
+#}
+#close FILE;
+#open FILE, ">", "dump_mwgeo-201609220500.sql.split10000.zz" or die "$!";
+#foreach my $line (@virtual_file_b) {
+#    print FILE $line;
+#}
+#close FILE;
+
+
+
+#my $diff = 
+Text::Diff::diff \@virtual_file_a,  \@virtual_file_b, { STYLE => "OldStyle", OUTPUT => \*STDOUT };
 
 
