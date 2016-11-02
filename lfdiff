@@ -123,15 +123,51 @@ tie @array_b, 'Tie::File', $fileB, autochomp => 0, mode => O_RDONLY, memory => $
 #, mode => O_RDONLY
 #, memory => 20_000_000
 
-my @part_array_a = @array_a[0..999];
-my @part_array_b = @array_b[0..999];
+my @part_array_a;
+my @part_array_b;
 
 printverb "diffing '$fileA' and '$fileB'".(defined $filename?" into '$filename'":'')."\n";
 my @virtual_file_a;
 my @virtual_file_b;
 my @diff;
-@diff = Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
-print Dumper(\@diff);
+my $maxdiffline = 0;
+my $lineoffset = 0;
+
+
+sub diff_discard_a {
+    my $index = shift;
+    $virtual_file_a[$index+$lineoffset] = $part_array_a[$index];
+}
+
+sub diff_discard_b {
+    my $index = shift;
+    $virtual_file_b[$index+$lineoffset] = $part_array_b[$index];
+}
+
+
+
+print "diffing from 0..999\n";
+@part_array_a = @array_a[0..999];
+@part_array_b = @array_b[0..999];
+#@diff = Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
+#print Dumper(\@diff);
+#Algorithm::Diff::traverse_sequences(
+#        \@part_array_a, \@part_array_b,
+#        {   #MATCH => diff_discard_a,
+#            DISCARD_A => \&diff_discard_a,
+#            DISCARD_B => \&diff_discard_b,
+#        }
+#    );
+Algorithm::Diff::traverse_balanced(
+        \@part_array_a, \@part_array_b,
+        {   #MATCH => diff_discard_a,
+            DISCARD_A => \&diff_discard_a,
+            DISCARD_B => \&diff_discard_b,
+        }
+    );
+#print "virtual file a:\n", Dumper(\@virtual_file_a);
+#print "virtual file b:\n", Dumper(\@virtual_file_b);
+#exit;
 
 #@part_array_a = @array_a[1001..2000];
 #@part_array_b = @array_b[1001..2000];
@@ -157,33 +193,82 @@ print Dumper(\@diff);
 #          ],
 #         ]
 
-my $maxdiffline = 0;
-foreach my $splitdiff (@diff) {
-    my @diffblock = @{$splitdiff};
-    foreach my $diffsplit (@diffblock) {
-        my @diffsplit = @{$diffsplit};
-        my ($prefix, $line, $value) = @diffsplit;
-        if ($prefix eq '-') {
-            $virtual_file_a[$line] = $value;
-        }
-        elsif ($prefix eq '+') {
-            $virtual_file_b[$line] = $value;
-        }
-        else {
-            errorexit "unknown prefix in diff data array found: '$prefix'\n";
-        }
-        $maxdiffline = $line if $line > $maxdiffline;
-    }
-}
+#foreach my $splitdiff (@diff) {
+#    my @diffblock = @{$splitdiff};
+#    foreach my $diffsplit (@diffblock) {
+#        my @diffsplit = @{$diffsplit};
+#        my ($prefix, $line, $value) = @diffsplit;
+#        $line += $lineoffset;
+#        if ($prefix eq '-') {
+#            $virtual_file_a[$line] = $value;
+#        }
+#        elsif ($prefix eq '+') {
+#            $virtual_file_b[$line] = $value;
+#        }
+#        else {
+#            errorexit "unknown prefix in diff data array found: '$prefix'\n";
+#        }
+#        $maxdiffline = $line if $line > $maxdiffline;
+#    }
+#}
 
 
 
+print "diffing from 1000..1999\n";
 @part_array_a = @array_a[1000..1999];
 @part_array_b = @array_b[1000..1999];
+#@diff = Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
+#print Dumper(\@diff);
+
+$lineoffset = 1000;
+#Algorithm::Diff::traverse_sequences(
+#        \@part_array_a, \@part_array_b,
+#        {   #MATCH => diff_discard_a,
+#            DISCARD_A => \&diff_discard_a,
+#            DISCARD_B => \&diff_discard_b,
+#        }
+#    );
+Algorithm::Diff::traverse_balanced(
+        \@part_array_a, \@part_array_b,
+        {   #MATCH => diff_discard_a,
+            DISCARD_A => \&diff_discard_a,
+            DISCARD_B => \&diff_discard_b,
+        }
+    );
+print "virtual file a:\n", Dumper(\@virtual_file_a);
+print "virtual file b:\n", Dumper(\@virtual_file_b);
+exit;
+
+
+#foreach my $splitdiff (@diff) {
+#    my @diffblock = @{$splitdiff};
+#    foreach my $diffsplit (@diffblock) {
+#        my @diffsplit = @{$diffsplit};
+#        my ($prefix, $line, $value) = @diffsplit;
+#        $line += $lineoffset;
+#        if ($prefix eq '-') {
+#            $virtual_file_a[$line] = $value;
+#        }
+#        elsif ($prefix eq '+') {
+#            $virtual_file_b[$line] = $value;
+#        }
+#        else {
+#            errorexit "unknown prefix in diff data array found: '$prefix'\n";
+#        }
+#        $maxdiffline = $line if $line > $maxdiffline;
+#    }
+#}
+
+
+
+print "diffing from 2000..2999\n";
+@part_array_a = @array_a[2000..2999];
+@part_array_b = @array_b[2000..2999];
 @diff = Algorithm::Diff::diff( \@part_array_a, \@part_array_b );
 print Dumper(\@diff);
 
-my $lineoffset = 1000;
+
+$lineoffset = 2000;
 foreach my $splitdiff (@diff) {
     my @diffblock = @{$splitdiff};
     foreach my $diffsplit (@diffblock) {
@@ -211,8 +296,10 @@ foreach my $splitdiff (@diff) {
 # make both arrays same size with $maxdiffline
 for my $ref (\@virtual_file_a, \@virtual_file_b) {
 #  $ref->[$_] //= "\n" for 0 .. $#$ref;
+#  $ref->[$_] //= "" for 0 .. $#$ref;
 #  $ref->[$_] //= "\n" for 0 .. $maxdiffline;
-  $ref->[$_] //= "" for 0 .. $maxdiffline;
+#  $ref->[$_] //= "" for 0 .. $maxdiffline;
+  $ref->[$_] //= "void\n" for 0 .. $maxdiffline;
 }
 
 
