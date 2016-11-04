@@ -1,0 +1,547 @@
+#!/usr/bin/perl
+
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+
+use warnings;
+use strict;
+use Getopt::Std;
+use Fcntl qw(SEEK_SET SEEK_CUR SEEK_END O_RDONLY O_RDWR); #SEEK_SET=0 SEEK_CUR=1 ...
+use IO::File;
+use Tie::File;
+use Data::Dumper;
+use Algorithm::Diff qw( diff );
+use Text::Diff;
+use v5.10;   # uses specific code for version 5.10: "$ref->[$_] //= '' for 0 .. $#$ref;"
+
+# Algorithmus:
+# 1)
+# Split INPUT1 und INPUT2 auf ganze Zeilen von insgesamt $splitsize Dateigröße.
+# Erzeuge eine Diffausgabe auf die Splits.
+# Analysiere die Diffausgabe.
+# Übernehme alle Diffs aus der Ausgabedatei und setze den Start für den
+# nächsten Split auf die jeweils letzte Diffzeile von INPUT1 und INPUT2.
+# Wenn der Diff an der letzten Zeile der Diffausgabe endet, schneide den
+# letzten Diff aus der Ausgabe heraus und speichere alle übrigen Diffs. In dem
+# Fall setze den Start für den nächsten Split auf die letzte Zeile des
+# vorletzen Diffs.
+# Gehe zu 1)
+# Prüfe die Ausgabe, indem aus INPUT1 und Diff eine Datei erzeugt wird, die mit
+# INPUT2 identisch ist.
+
+
+
+my @virtual_file_a;
+my @virtual_file_b;
+
+
+{
+
+    package MyDiff;
+    use base qw(Text::Diff::OldStyle);
+    #@MyDiff::ISA = qw( Text::Diff::OldStyle );
+
+    ## Hunks are made of ops.  An op is the starting index for each
+    ## sequence and the opcode:
+    use constant A       => 0;   # Array index before match/discard
+    use constant B       => 1;
+    use constant OPCODE  => 2;   # "-", " ", "+"
+    use constant FLAG    => 3;   # What to display if not OPCODE "!"
+
+    sub my_op {
+        my $ops = shift;
+        my $op = $ops->[0]->[OPCODE];
+        $op = "c" if grep $_->[OPCODE] ne $op, @$ops;
+        $op = "a" if $op eq "+";
+        $op = "d" if $op eq "-";
+        return $op;
+    }
+
+    sub my_op_to_line {
+        my ( $seqs, $op, $a_or_b, $op_prefixes ) = @_;
+
+        my $opcode = $op->[OPCODE];
+        return () unless defined $op_prefixes->{$opcode};
+
+        my $op_sym = defined $op->[FLAG] ? $op->[FLAG] : $opcode;
+        $op_sym = $op_prefixes->{$op_sym};
+        return () unless defined $op_sym;
+
+        $a_or_b = $op->[OPCODE] ne "+" ? 0 : 1 unless defined $a_or_b;
+        my @line = ( $op_sym, $seqs->[$a_or_b][$op->[$a_or_b]] );
+        unless ( $line[1] =~ /(?:\n|\r\n)$/ ) {
+            $line[1] .= "\n\\ No newline at end of file\n";
+        }
+        return @line;
+    }
+
+    sub MyDiff::hunk {
+        shift; ## No instance data
+        pop; ## ignore options
+        my $ops = pop;
+        ## Leave the sequences in @_[0,1]
+
+        my $a_prefixes = { "+" => undef,  " " => undef, "-" => "< "  };
+        my $b_prefixes = { "+" => "> ",   " " => undef, "-" => undef };
+
+        my $op = my_op $ops;
+
+        return join( "",
+            map( my_op_to_line( \@_, $_, A, $a_prefixes ), @$ops ),
+            $op eq "c" ? "---\n" : (),
+            map( my_op_to_line( \@_, $_, B, $b_prefixes ), @$ops ),
+        );
+    }
+
+}
+
+
+
+#-------- constants --------
+my $splitsize = (2*1024*1024*1024); #2GiB
+#my $linesplitsize = (10*1000*1000);   # use chunks with 10'000'000 lines to diff
+#my $magic = "a\n";  # filling value describing that lines in diff file are the same.
+#my $mem_cache = 2_000_000;  # 2MB read cache
+#------- /constants --------
+
+my $beverbose;
+
+sub printerr
+{
+  print STDERR "@_";
+}
+
+sub printverb
+{
+    printerr @_ if defined $beverbose and $beverbose != 0;
+}
+
+sub usage {
+  printerr <<EOL;
+usage:
+lfdiff [-h] [-v] [-f] [-o OUTPUT] INPUT1 INPUT2
+\t-f: force overwriting
+\t-o: write output to OUTFILE instead of stdout
+\t-v: be verbose
+\t-h: print usage
+EOL
+}
+
+sub errorexit {
+  printerr @_;
+  usage;
+  exit 1;
+}
+
+
+# split a file in parts.
+# Start at 'offset', chewing at max 'maxbytes' bytes, store only full files
+# including line end marker.
+sub filesplit_maxbytes($$$$) {
+    my ($infilename, $outfilename, $maxbytes, $offset) = @_;
+    my $len = 0;
+    my $strlen;
+    my $lines = 0;
+
+    open (INPUT, "<", $infilename) || die "error: can not open '$infilename' for reading: $!";
+    open (OUTPUT, ">", $outfilename) || die "error: can not open '$outfilename' for writing: $!";
+    seek(INPUT, $offset, SEEK_SET);
+    while (<INPUT>) {
+        $strlen = y===c;
+        last if ($len + $strlen > $maxbytes);
+        $len += $strlen; #bytes::length;
+        print OUTPUT $_;
+        $lines++;
+    }
+    close(OUTPUT);
+    close(INPUT);
+
+    return ($len,$lines);
+}
+
+
+# split a file in parts.
+# Start at 'offset', chewing at max 'maxlines' lines, store only full files
+# including line end marker.
+sub filesplit_maxlines($$$$) {
+    my ($infilename, $outfilename, $maxlines, $offset) = @_;
+    my $strlen;
+    my $lines = 0;
+
+    open (INPUT, "<", $infilename) || die "error: can not open '$infilename' for reading: $!";
+    open (OUTPUT, ">", $outfilename) || die "error: can not open '$outfilename' for writing: $!";
+    seek(INPUT, $offset, SEEK_SET);
+    while (<INPUT>) {
+        last if ($lines > $maxlines);
+        print OUTPUT $_;
+        $lines++;
+    }
+    close(OUTPUT);
+    close(INPUT);
+
+    return ($lines);
+}
+
+
+# simplify the array containing lines of diff output:
+# neutralize lines being both added and removed
+sub simplify_diff($) {
+    my $diff_arr = shift;
+
+    my $array_len = scalar @$diff_arr;
+    my $index_del;
+    my $index_add;
+
+    foreach my $index (0..$array_len-1) {
+#        print $diff_arr->[$index];
+    }
+}
+
+
+
+sub save_array {
+    my $filename = shift;
+    my $data = shift;
+
+    open (OUTPUT, ">", $filename) || die "error: can not open '$filename' for writing: $!";
+    foreach my $line (@{$data}) {
+        print OUTPUT $line;
+    }
+    close(OUTPUT);
+}
+
+
+sub save_array_append {
+    my $filename = shift;
+    my $data = shift;
+
+    open (OUTPUT, ">>", $filename) || die "error: can not open '$filename' for appending: $!";
+    foreach my $line (@{$data}) {
+        print OUTPUT $line;
+    }
+    close(OUTPUT);
+}
+
+
+sub dump_array {
+    my $arrayref = shift;
+
+    for (my $i=0; $i < $#{$arrayref}; $i++) {
+        my $line = defined $arrayref->[$i]? "'$arrayref->[$i]'": "undefined";
+        print "$i: $line\n";
+    }
+}
+
+
+sub flush_handle {
+    print STDERR "flush handle\n";
+    my $fh = shift;
+    my $ofh = select $fh;
+    $| = 1;                    # Make LOG socket hot
+    print $fh "";              # print nothing
+    $| = 0;                    # LOG socket is no longer hot
+    select $ofh;
+}
+
+my %args;
+#$Getopt::Std::STANDARD_HELP_VERSION = 1;
+if (getopts( 'ho:vf', \%args )) {
+#  errorexit "error parsing commandline\n";
+}
+
+if (defined $args{h} and $args{h} ne '') {
+    usage();
+    exit 0;
+}
+
+my $filename = $args{o};
+if (defined $filename) {
+  # redirect STDOUT to file
+  open (STDOUT, ">", $filename) or die "Unable to open file '$filename': $!";
+}
+
+my $useforce = $args{f};
+$beverbose = $args{v};
+
+if ($#ARGV+1 < 2) {
+    errorexit "error: missing input files\n";
+}
+
+my $fileA = $ARGV[0];
+my $fileB = $ARGV[1];
+
+if ($fileA eq $fileB) {
+    errorexit "error: input files are same\n";
+}
+
+#my @virtual_file_a;
+#my @virtual_file_b;
+my $lenA = 0;
+my $lenB = 0;
+my $linesA = 0;
+my $linesB = 0;
+#my $diff = "${fileB}.diff";
+#my $linesoffset = 0;
+my $linenr;
+
+my $cmdline;
+
+#my @array_a;
+#my @array_b;
+#tie @array_a, 'Tie::File', $fileA, autochomp => 0, mode => O_RDONLY , memory => $mem_cache or die "error: could not open file '$fileA': $!";
+#tie @array_b, 'Tie::File', $fileB, autochomp => 0, mode => O_RDONLY , memory => $mem_cache or die "error: could not open file '$fileB': $!";
+##, memory => $mem_cache
+#
+#my $tmp_diff_file_a = "/tmp/lfdiff_x.data";
+##open (TMP_DIFF_OUT_A, ">", $tmp_diff_file_a) || die "error: can not open '$tmp_diff_file_a' for writing: $!";
+#my $out_fh_a = IO::File->new($tmp_diff_file_a, ">");
+#die "error: can not open '$tmp_diff_file_a' for writing: $!" if not defined $out_fh_a;
+#my $tmp_diff_file_b = "/tmp/lfdiff_y.data";
+##open (TMP_DIFF_OUT_B, ">", $tmp_diff_file_b) || die "error: can not open '$tmp_diff_file_b' for writing: $!";
+#my $out_fh_b = IO::File->new($tmp_diff_file_b, ">");
+#die "error: can not open '$tmp_diff_file_b' for writing: $!" if not defined $out_fh_b;
+
+
+# get the number of splittings of the input files
+my $filesize = -s $fileA;
+$filesize = -s $fileB if -s $fileB > $filesize;
+my $max_i = int($filesize / $splitsize) +1;
+
+#print $max_i;
+#exit;
+
+#my $maxdiffline = $#array_a;
+#$maxdiffline = $#array_b if $maxdiffline < $#array_b;
+#while ($linesoffset < $maxdiffline) {
+for (my $i=1; $i<= $max_i; $i++) {
+
+# split the input files in chunks
+#system("split -l $linesplitsize $fileA /var/tmp/");
+
+#my @part_array_a;
+#my @part_array_b;
+#
+#if ($linesoffset < $#array_a) {
+#    my $linesoffsetend = $linesoffset+$linesplitsize-1;
+#    $linesoffsetend = $#array_a if $#array_a < $linesoffsetend;
+#    @part_array_a = @array_a[$linesoffset..$linesoffsetend];
+#}
+#else {
+#    @part_array_a = ();
+#}
+#if ($linesoffset < $#array_b) {
+#    my $linesoffsetend = $linesoffset+$linesplitsize-1;
+#    $linesoffsetend = $#array_b if $#array_b < $linesoffsetend;
+#    @part_array_b = @array_b[$linesoffset..$linesoffsetend];
+#}
+#else {
+#    @part_array_b = ();
+#}
+#
+#save_array ("/tmp/lfdiff_a.data", \@part_array_a);
+#save_array ("/tmp/lfdiff_b.data", \@part_array_b);
+#
+#@part_array_a = ();
+#@part_array_b = ();
+
+$cmdline = "split -n l/$i/$max_i $fileA | wc -l";
+open(WCINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
+my $maxlinesA = int(<WCINPUT>);
+close (WCINPUT);
+#printerr "File A, split $i, lines $maxlinesA\n";
+
+$cmdline = "split -n l/$i/$max_i $fileB | wc -l";
+open(WCINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
+my $maxlinesB = int(<WCINPUT>);
+close (WCINPUT);
+#printerr "File B, split $i, lines $maxlinesB\n";
+
+# only bash can use input input pipe substitution
+$cmdline = "bash -c \"diff <(split -n l/$i/$max_i $fileA) <(split -n l/$i/$max_i $fileB)\"";
+open (DIFFINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
+#$linesA = 0;
+#$linesB = 0;
+while (<DIFFINPUT>) {
+#    print $_;
+            if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
+                if ($3 eq 'a') {
+                    printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                elsif ($3 eq 'c') {
+                    printverb "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                elsif ($3 eq 'd') {
+                    printverb "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                # add line number of previous runs onto line number from diff
+                print ''.($1+$linesA).($2?",".($2+$linesA):'').$3.($4+$linesB).($5?",".($5+$linesB):'')."\n";
+            }
+            else {
+                print;
+            }
+}
+close (DIFFINPUT);
+
+$linesA += $maxlinesA;
+$linesB += $maxlinesB;
+
+    
+#$out_fh_a->flush();         # Flush the buffer
+#$out_fh_b->flush();         # Flush the buffer
+
+## assign empty values to the undef array slots
+## for the "diff" command use a unique value not present in the other lines
+#my $maxpart;
+#if (($linesoffset + $linesplitsize) > $#array_a) {
+#    $maxpart = $#array_a - $linesoffset;
+#}
+#else {
+#    $maxpart = $linesplitsize-1;
+#}
+#$part_array_a[$_] //= "a\n" for 0 .. $maxpart;
+#if (($linesoffset + $linesplitsize) > $#array_b) {
+#    $maxpart = $#array_b - $linesoffset;
+#}
+#else {
+#    $maxpart = $linesplitsize-1;
+#}
+#$part_array_b[$_] //= "a\n" for 0 .. $maxpart;
+#
+## save stripped file
+#save_array_append ("/tmp/lfdiff_x.data", \@part_array_a);
+#save_array_append ("/tmp/lfdiff_y.data", \@part_array_b);
+
+
+#$linesoffset += $linesplitsize;
+}
+
+#close (TMP_DIFF_OUT_A);
+#close (TMP_DIFF_OUT_B);
+#undef $out_fh_a;
+#undef $out_fh_b;
+
+
+#print "diff file A:\n", Dumper(\@virtual_file_a);
+#print "diff file B:\n", Dumper(\@virtual_file_b);
+#print "diff file A:\n"; dump_array(\@virtual_file_a);
+#print "diff file B:\n"; dump_array(\@virtual_file_b);
+
+
+# assign empty values to the undef array slots
+# for the "diff" command use a unique value not present in the other lines
+#$virtual_file_a[$_] //= "a\n" for 0 .. $#array_a;
+#$virtual_file_b[$_] //= "a\n" for 0 .. $#array_b;
+
+
+# do the final diff with the stripped files
+#save_array ("/tmp/lfdiff_a.data", \@virtual_file_a);
+#save_array ("/tmp/lfdiff_b.data", \@virtual_file_b);
+
+
+#$cmdline = "diff /tmp/lfdiff_a.data /tmp/lfdiff_b.data";
+#$cmdline = "diff $tmp_diff_file_a $tmp_diff_file_b";
+#open (DIFFINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
+#while (<DIFFINPUT>) {
+#    print $_;
+#}
+#close (DIFFINPUT);
+#
+#unlink $tmp_diff_file_a, $tmp_diff_file_b;
+
+
+#Text::Diff::diff \@virtual_file_a,  \@virtual_file_b, {
+#    OUTPUT => \*STDOUT, STYLE => 'OldStyle'
+#};
+#Text::Diff::diff \@virtual_file_a,  \@virtual_file_b, {
+#    OUTPUT => \*STDOUT, STYLE => 'MyDiff', CONTEXT => 0
+#};
+
+
+
+
+
+exit;
+
+
+
+
+
+
+# split files
+#printerr "splitting $fileA\n";
+#system("split --line-bytes=$splitsize $fileA ${fileA}.x >&2");
+OUTER: for my $A ('a'..'z') {
+    for my $B ('a'..'z') {
+        my $splitA = "${fileA}.y$A$B";
+        my $splitB = "${fileB}.y$A$B";
+        printverb "splitting $splitA\n";
+        my ($mylen,$mylinesA) = filesplit_maxbytes($fileA, $splitA, $splitsize, $lenA);
+        last OUTER if $mylen < 1;
+        $lenA += $mylen;
+
+        printverb "splitting $splitB\n";
+        my $mylinesB;
+        ($mylen,$mylinesB) = filesplit_maxbytes($fileB, $splitB, $splitsize, $lenB);
+        last OUTER if $mylen < 1;
+        $lenB += $mylen;
+
+        my $diff = "${splitB}.diff";
+        if ( -f $diff and not $useforce ) {
+            errorexit "error: $diff exists. Use -f to force writing\n";
+        }
+        printverb "diffing $splitA ($mylinesA) - $splitB ($mylinesB) into $diff\n";
+        system("diff --speed-large-files $splitA $splitB >> $diff");
+        unlink $splitA, $splitB; # remove temp files
+
+        printverb "analyzing diff\n";
+        open (DIFF, "<", $diff) || die "error: can not open '$diff' for reading: $!";
+        while (<DIFF>) {
+            if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
+                if ($3 eq 'a') {
+                    printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                elsif ($3 eq 'c') {
+                    printverb "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                elsif ($3 eq 'd') {
+                    printverb "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                }
+                # add line number of previous runs onto line number from diff
+                print ''.($1+$linesA).($2?",".($2+$linesA):'').$3.($4+$linesB).($5?",".($5+$linesB):'')."\n";
+            }
+            else {
+                print;
+            }
+        }
+        close DIFF;
+        unlink $diff; # remove temp file
+
+        $linesA += $mylinesA;
+        $linesB += $mylinesB;
+
+#        last OUTER if $B eq 'c'; # Test code
+    }
+}
+
+if (defined $filename) {
+    my @array_a;
+    tie @array_a, 'Tie::File', $filename, autochomp => 0, mode => O_RDWR or die "error: could not open file '$fileA': $!";
+    #, memory => $mem_cache
+    simplify_diff(\@array_a);
+}
+
+#unlink $diff; # remove temp file
+
+
