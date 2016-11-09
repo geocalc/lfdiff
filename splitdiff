@@ -233,7 +233,7 @@ unlink $tmpfile;
 $linesA = 1;
 $linesB = 1;
 
-while ($linesA <= $#virtual_file_a and $linesB <= $#virtual_file_b) {
+while ($linesA <= $#virtual_file_a or $linesB <= $#virtual_file_b) {
     if (defined $virtual_file_a[$linesA] and defined $virtual_file_b[$linesB]) {
         # change lines from fileA to fileB
 
