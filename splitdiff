@@ -40,7 +40,7 @@ use Getopt::Std;
 
 
 #-------- constants --------
-my $default_splitsize = 2*1024*1024*1024;   # 2GiB
+my $default_splitsize = 4*1024*1024*1024;   # 4GiB
 my $dodebug = 0;
 #------- /constants --------
 
