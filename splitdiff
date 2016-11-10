@@ -174,7 +174,6 @@ for (my $i=1; $i<= $max_i; $i++) {
     open (DIFFINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
     while (<DIFFINPUT>) {
         debug $_;
-        my $line;
         if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
             if (defined $dodebug and $dodebug != 0) {
                 if ($3 eq 'a') {
@@ -188,14 +187,13 @@ for (my $i=1; $i<= $max_i; $i++) {
                 }
             }
             # add line number of previous runs onto line number from diff
-            $line = ''.($1+$lineOffsetA).($2?",".($2+$lineOffsetA):'').$3.($4+$lineOffsetB).($5?",".($5+$lineOffsetB):'')."\n";
+            $_ = ''.($1+$lineOffsetA).($2?",".($2+$lineOffsetA):'').$3.($4+$lineOffsetB).($5?",".($5+$lineOffsetB):'')."\n";
         }
         else {
-            $line = $_;
         }
-        debug $line;
+        debug $_;
 
-        if ($line =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
+        if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
             if ($3 eq 'a') {
                 printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
                 $linesA=$1;
@@ -212,19 +210,19 @@ for (my $i=1; $i<= $max_i; $i++) {
                 $linesB=$4;
             }
         }
-        elsif ($line =~ m/^\<(.*)$/) {
+        elsif ($_ =~ m/^\<(.*)$/) {
             $virtual_file_a[$linesA]=$1;
             $linesA++;
         }
-        elsif ($line =~ m/^\>(.*)$/) {
+        elsif ($_ =~ m/^\>(.*)$/) {
             $virtual_file_b[$linesB]=$1;
             $linesB++;
         }
-        elsif ($line =~ m/^\-\-\-$/) {
+        elsif ($_ =~ m/^\-\-\-$/) {
             # do nothing
         }
         else {
-            die "can not parse line '$line'";
+            die "can not parse line '$_'";
         }
     }
     close (DIFFINPUT);
