@@ -69,6 +69,7 @@ lfdiff [-h] [-v] [-o OUTPUT] [-s SPLITSIZE] INPUT1 INPUT2
 \t-o: write output to OUTFILE instead of stdout
 \t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: $default_splitsize byte)
 \t-v: be verbose
+\t-d: print debug information (lots of lines)
 \t-h: print usage
 EOL
 }
@@ -93,7 +94,7 @@ sub dump_array {
 
 my %args;
 #$Getopt::Std::STANDARD_HELP_VERSION = 1;
-if (getopts( 'hs:o:v', \%args )) {
+if (getopts( 'hs:o:vd', \%args )) {
 #  errorexit "error parsing commandline\n";
 }
 
@@ -102,6 +103,7 @@ if (defined $args{h} and $args{h} ne '') {
     exit 0;
 }
 
+$dodebug = $args{d} || $dodebug;
 $beverbose = $args{v};
 
 my $splitsize = $args{s} || $default_splitsize;
