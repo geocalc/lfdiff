@@ -42,6 +42,7 @@ use Fcntl qw(:seek);
 
 #-------- constants --------
 my $splitsize = 10_000;#(2*1024*1024*1024); #2GiB
+my $dodebug = 0;
 #------- /constants --------
 
 my $beverbose;
@@ -54,6 +55,11 @@ sub printerr
 sub printverb
 {
     printerr @_ if defined $beverbose and $beverbose != 0;
+}
+
+sub debug
+{
+    printerr @_ if defined $dodebug and $dodebug != 0;
 }
 
 sub usage {
@@ -73,11 +79,13 @@ sub errorexit {
 }
 
 sub dump_array {
-    my $arrayref = shift;
+    if (defined $dodebug and $dodebug != 0) {
+        my $arrayref = shift;
 
-    for (my $i=0; $i < $#{$arrayref}; $i++) {
-        my $line = defined $arrayref->[$i]? "'$arrayref->[$i]'": "undefined";
-        printerr "$i: $line\n";
+        for (my $i=0; $i < $#{$arrayref}; $i++) {
+            my $line = defined $arrayref->[$i]? "'$arrayref->[$i]'": "undefined";
+            printerr "$i: $line\n";
+        }
     }
 }
 
@@ -142,15 +150,15 @@ for (my $i=1; $i<= $max_i; $i++) {
     while (<DIFFINPUT>) {
     #    print $_;
         if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
-            if (defined $beverbose and $beverbose != 0) {
+            if (defined $dodebug and $dodebug != 0) {
                 if ($3 eq 'a') {
-                    printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                    printerr "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
                 }
                 elsif ($3 eq 'c') {
-                    printverb "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                    printerr "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
                 }
                 elsif ($3 eq 'd') {
-                    printverb "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                    printerr "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
                 }
             }
             # add line number of previous runs onto line number from diff
@@ -177,7 +185,7 @@ $linesB = 0;
 my @AlinkB;
 my @BlinkA;
 while (<TMPFILE>) {
-#    print;
+    debug $_;
     if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
         if ($3 eq 'a') {
             printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
@@ -217,10 +225,10 @@ while (<TMPFILE>) {
     }
 }
 
-#printerr "virtual file A:\n";
-#dump_array \@virtual_file_a;
-#printerr "virtual file B:\n";
-#dump_array \@virtual_file_b;
+debug "virtual file A:\n";
+dump_array \@virtual_file_a;
+debug "virtual file B:\n";
+dump_array \@virtual_file_b;
 
 close TMPFILE;
 unlink $tmpfile;
