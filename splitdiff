@@ -152,6 +152,7 @@ my $max_i = int($filesize / $splitsize) +1;
 
 for (my $i=1; $i<= $max_i; $i++) {
 
+    printverb "split input $i/$max_i\n";
     $cmdline = "split -n l/$i/$max_i $fileA | wc -l";
     open(WCINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
     my $maxlinesA = int(<WCINPUT>);
@@ -165,6 +166,7 @@ for (my $i=1; $i<= $max_i; $i++) {
     #printerr "File B, split $i, lines $maxlinesB\n";
 
     # only bash can use input input pipe substitution
+    printverb "diff input $i/$max_i\n";
     $cmdline = "bash -c \"diff <(split -n l/$i/$max_i $fileA) <(split -n l/$i/$max_i $fileB)\"";
     open (DIFFINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
     while (<DIFFINPUT>) {
@@ -202,8 +204,6 @@ my @virtual_file_a;
 my @virtual_file_b;
 $linesA = 0;
 $linesB = 0;
-my @AlinkB;
-my @BlinkA;
 while (<TMPFILE>) {
     debug $_;
     if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
@@ -211,22 +211,16 @@ while (<TMPFILE>) {
             printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
             $linesA=$1;
             $linesB=$4;
-            @AlinkB[$linesA]=$linesB;
-            @BlinkA[$linesB]=$linesA;
         }
         elsif ($3 eq 'c') {
             printverb "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
             $linesA=$1;
             $linesB=$4;
-            @AlinkB[$linesA]=$linesB;
-            @BlinkA[$linesB]=$linesA;
         }
         elsif ($3 eq 'd') {
             printverb "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
             $linesA=$1;
             $linesB=$4;
-            @AlinkB[$linesA]=$linesB;
-            @BlinkA[$linesB]=$linesA;
         }
     }
     elsif ($_ =~ m/^\<(.*)$/) {
@@ -253,13 +247,50 @@ dump_array \@virtual_file_b;
 close TMPFILE;
 unlink $tmpfile;
 
+
 # remove double entries
+
+# I do assume, that entries which are not defined on both sides are equal.
+# Run along the lines and try to find those which are equal, look at each line
+# only once.
+# Note: Maybe we get a better result, if we test those defined lines again
+# with the 'diff' tool?
+$linesB = 0;
+$linesA = 0;
+
+while ($linesA <= $#virtual_file_a) {
+    if (defined $virtual_file_a[$linesA] and defined $virtual_file_b[$linesB]) {
+        # both lines defined, maybe the same
+        if ($virtual_file_a[$linesA] eq $virtual_file_b[$linesB]) {
+            undef $virtual_file_a[$linesA];
+            undef $virtual_file_b[$linesB];
+        }
+        $linesA++;
+        $linesB++;
+    }
+    elsif (defined $virtual_file_a[$linesA]) {
+        # file A defined, file B not. This line gets removed from file A.
+        # try to find common lines again.
+        $linesA++;
+    }
+    elsif (defined $virtual_file_b[$linesB]) {
+        # file B defined, file A not. This line gets removed from file B.
+        # try to find common lines again.
+        $linesB++;
+    }
+    else {
+        # both lines undefined (i.e. same)
+        $linesA++;
+        $linesB++;
+    }
+}
+
 
 
 # print out the diff
 
-$linesA = 1;
-$linesB = 1;
+$linesA = 0;
+$linesB = 0;
 
 while ($linesA <= $#virtual_file_a or $linesB <= $#virtual_file_b) {
     if (defined $virtual_file_a[$linesA] and defined $virtual_file_b[$linesB]) {
