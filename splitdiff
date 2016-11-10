@@ -41,7 +41,7 @@ use Fcntl qw(:seek);
 
 
 #-------- constants --------
-my $splitsize = 10_000;#(2*1024*1024*1024); #2GiB
+my $default_splitsize = 2*1024*1024*1024;   # 2GiB
 my $dodebug = 0;
 #------- /constants --------
 
@@ -65,8 +65,9 @@ sub debug
 sub usage {
   printerr <<EOL;
 usage:
-lfdiff [-h] [-v] [-f] [-o OUTPUT] INPUT1 INPUT2
+lfdiff [-h] [-v] [-o OUTPUT] [-s SPLITSIZE] INPUT1 INPUT2
 \t-o: write output to OUTFILE instead of stdout
+\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: $default_splitsize byte)
 \t-v: be verbose
 \t-h: print usage
 EOL
@@ -92,7 +93,7 @@ sub dump_array {
 
 my %args;
 #$Getopt::Std::STANDARD_HELP_VERSION = 1;
-if (getopts( 'ho:v', \%args )) {
+if (getopts( 'hs:o:v', \%args )) {
 #  errorexit "error parsing commandline\n";
 }
 
@@ -101,13 +102,30 @@ if (defined $args{h} and $args{h} ne '') {
     exit 0;
 }
 
+$beverbose = $args{v};
+
+my $splitsize = $args{s} || $default_splitsize;
+if ($splitsize =~ m/^(\d+)kB?$/) {
+    $splitsize = $1 * 1024;
+}
+elsif ($splitsize =~ m/^(\d+)MB?$/) {
+    $splitsize = $1 * 1024*1024;
+}
+elsif ($splitsize =~ m/^(\d+)GB?$/) {
+    $splitsize = $1 * 1024*1024*1024;
+}
+elsif (int($splitsize) ne $splitsize) {
+    die "Error: can not recognize split size '$splitsize'";
+}
+printverb "use split size $splitsize\n";
+
 my $filename = $args{o};
 if (defined $filename) {
   # redirect STDOUT to file
   open (STDOUT, ">", $filename) or die "Unable to open file '$filename': $!";
+  printverb "output to $filename\n";
 }
 
-$beverbose = $args{v};
 
 if ($#ARGV+1 < 2) {
     errorexit "error: missing input files\n";
