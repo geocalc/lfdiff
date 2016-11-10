@@ -174,40 +174,22 @@ for (my $i=1; $i<= $max_i; $i++) {
     open (DIFFINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
     while (<DIFFINPUT>) {
         debug $_;
-        if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
-            if (defined $dodebug and $dodebug != 0) {
-                if ($3 eq 'a') {
-                    printerr "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                }
-                elsif ($3 eq 'c') {
-                    printerr "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                }
-                elsif ($3 eq 'd') {
-                    printerr "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                }
-            }
-            # add line number of previous runs onto line number from diff
-            $_ = ''.($1+$lineOffsetA).($2?",".($2+$lineOffsetA):'').$3.($4+$lineOffsetB).($5?",".($5+$lineOffsetB):'')."\n";
-        }
-        else {
-        }
-        debug $_;
 
         if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
             if ($3 eq 'a') {
-                printverb "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                $linesA=$1;
-                $linesB=$4;
+                debug "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                $linesA=$1+$lineOffsetA;
+                $linesB=$4+$lineOffsetB;
             }
             elsif ($3 eq 'c') {
-                printverb "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                $linesA=$1;
-                $linesB=$4;
+                debug "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                $linesA=$1+$lineOffsetA;
+                $linesB=$4+$lineOffsetB;
             }
             elsif ($3 eq 'd') {
-                printverb "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                $linesA=$1;
-                $linesB=$4;
+                debug "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
+                $linesA=$1+$lineOffsetA;
+                $linesB=$4+$lineOffsetB;
             }
         }
         elsif ($_ =~ m/^\<(.*)$/) {
@@ -249,6 +231,7 @@ dump_array \@virtual_file_b;
 # with the 'diff' tool?
 $linesB = 0;
 $linesA = 0;
+printverb "remove doublets\n";
 
 while ($linesA <= $#virtual_file_a) {
     if (defined $virtual_file_a[$linesA] and defined $virtual_file_b[$linesB]) {
