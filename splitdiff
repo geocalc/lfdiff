@@ -176,20 +176,18 @@ for (my $i=1; $i<= $max_i; $i++) {
         debug $_;
 
         if ($_ =~ m/^(\d+),?(\d*)([acd])(\d+),?(\d*)$/) {
-            if ($3 eq 'a') {
-                debug "added lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                $linesA=$1+$lineOffsetA;
-                $linesB=$4+$lineOffsetB;
-            }
-            elsif ($3 eq 'c') {
-                debug "changed lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                $linesA=$1+$lineOffsetA;
-                $linesB=$4+$lineOffsetB;
-            }
-            elsif ($3 eq 'd') {
-                debug "deleted lines from $1".($2?" to $2":'').", into $4".($5?" to $5":'')."\n";
-                $linesA=$1+$lineOffsetA;
-                $linesB=$4+$lineOffsetB;
+            $linesA=$1+$lineOffsetA;
+            $linesB=$4+$lineOffsetB;
+            if (defined $dodebug and $dodebug != 0) {
+                if ($3 eq 'a') {
+                    printerr "added lines from $linesA".($2?" to ".($2+$lineOffsetA):'').", into $linesB".($5?" to ".($5+$lineOffsetB):'')."\n";
+                }
+                elsif ($3 eq 'c') {
+                    printerr "changed lines from $linesA".($2?" to ".($2+$lineOffsetA):'').", into $linesB".($5?" to ".($5+$lineOffsetB):'')."\n";
+                }
+                elsif ($3 eq 'd') {
+                    printerr "deleted lines from $linesA".($2?" to ".($2+$lineOffsetA):'').", into $linesB".($5?" to ".($5+$lineOffsetB):'')."\n";
+                }
             }
         }
         elsif ($_ =~ m/^\<(.*)$/) {
