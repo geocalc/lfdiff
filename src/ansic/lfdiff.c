@@ -6,6 +6,8 @@
  */
 
 #define _GNU_SOURCE
+#include "difflist.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -54,6 +56,8 @@ struct runtime {
     unsigned long currentlineFileB;
     unsigned long lineOffsetFileA;
     unsigned long lineOffsetFileB;
+    struct diff_list_s *difflistFileA;
+    struct diff_list_s *difflistFileB;
 } runtime = {0};
 
 void usage(const char *argv0) {
@@ -200,6 +204,9 @@ int main(int argc, char **argv) {
     }
     const int max_i = i+1;
 
+    runtime.difflistFileA = diff_new();
+    runtime.difflistFileB = diff_new();
+
 //    FILE *tempfile = tmpfile();
     char *line = NULL;	// buffer holding one line of diff
     size_t n = 0;	// size of the buffer
@@ -341,6 +348,9 @@ int main(int argc, char **argv) {
     }
     free(line);
     regfree(&regex);
+
+    diff_delete(runtime.difflistFileA);
+    diff_delete(runtime.difflistFileB);
 
 //    retval = fseek(tempfile, 0, SEEK_SET);
 //    size_t n = 0;
