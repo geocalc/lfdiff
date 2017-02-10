@@ -168,7 +168,7 @@ for (my $i=1; $i<= $max_i; $i++) {
     close (WCINPUT);
     #printerr "File B, split $i, lines $maxlinesB\n";
 
-    # only bash can use input input pipe substitution
+    # only bash can use input pipe substitution
     printverb "diff input $i/$max_i\n";
     $cmdline = "bash -c \"diff <(split -n l/$i/$max_i $fileA) <(split -n l/$i/$max_i $fileB)\"";
     open (DIFFINPUT, "-|", $cmdline) or die "Unable to call '$cmdline': $!";
