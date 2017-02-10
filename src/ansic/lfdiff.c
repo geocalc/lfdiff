@@ -28,7 +28,7 @@
 
 
 static const long default_splitsize = 2ul*1024*1024*1024; // 2GB
-static const char *default_tmpdir = "/tmp";
+//static const char *default_tmpdir = "/tmp";
 
 
 
@@ -41,7 +41,7 @@ const char *mybasename(const char *path) {
 struct config {
     long splitsize;
     int be_verbose;
-    const char *tmpdir;
+//    const char *tmpdir;
     const char *outfilename;
     const char *file1;
     const char *file2;
@@ -60,8 +60,8 @@ void usage(const char *argv0) {
 	    "\t-o: write output to OUTFILE instead of stdout\n"
 	    "\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: %ld byte)\n"
 	    "\t-v: be verbose\n"
-	    "environment TMPDIR, TMP, TEMP: look in each variable (in this order) for a setting to store files (default: %s)\n"
-	    , mybasename(argv0), default_splitsize, default_tmpdir
+//	    "environment TMPDIR, TMP, TEMP: look in each variable (in this order) for a setting to store files (default: %s)\n"
+	    , mybasename(argv0), default_splitsize/*, default_tmpdir*/
     );
 
 }
@@ -160,19 +160,19 @@ int main(int argc, char **argv) {
     }
     config.file2 = argv[optind++];
 
-    {
-	const char *temp;
-	if ((temp = getenv("TMPDIR"))) {
-	}
-	else if ((temp = getenv("TMP"))) {
-	}
-	else if ((temp = getenv("TEMP"))) {
-	}
-	else {
-	    temp = default_tmpdir;
-	}
-	config.tmpdir = temp;
-    }
+//    {
+//	const char *temp;
+//	if ((temp = getenv("TMPDIR"))) {
+//	}
+//	else if ((temp = getenv("TMP"))) {
+//	}
+//	else if ((temp = getenv("TEMP"))) {
+//	}
+//	else {
+//	    temp = default_tmpdir;
+//	}
+//	config.tmpdir = temp;
+//    }
 
     int i;
     {
