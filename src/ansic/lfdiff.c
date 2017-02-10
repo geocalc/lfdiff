@@ -167,7 +167,9 @@ int main(int argc, char **argv) {
     }
     const int max_i = i+1;
 
-    FILE *tempfile = tmpfile();
+//    FILE *tempfile = tmpfile();
+    char *line = NULL;	// buffer holding one line of diff
+    size_t n = 0;	// size of the buffer
 
     for (i=1; i<=max_i; i++) { // exit loop if both split files return 0 bytes
 	int lines1, lines2;
@@ -205,48 +207,55 @@ int main(int argc, char **argv) {
 	    break;
 
 	// use bash for input pipe substitution
-	char *line;
+//	char *line;
 	fprintf(stderr, "diff input %d/%d\n", i, max_i);
 	splitinput = mypopen ("bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"", "r", i, max_i, config.file1, i, max_i, config.file2);
 	while (!feof(splitinput)) {
-	    size_t n=0;
-	    line = NULL;
+//	    size_t n=0;
+//	    line = NULL;
 	    retval = getline(&line, &n, splitinput);
 	    if (1 > retval) {
 		if (errno) {
-		    fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+		    fprintf(stderr, "%s error: reading from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"': %s\n", mybasename(argv[0]), i, max_i, config.file1, i, max_i, config.file2, strerror(errno));
+		}
+		else if (feof(splitinput)) {
+		    // we have reached the end of input.
+		    // why didn't we notice earlier at the top of the loop?
+//		    free(line);
+		    break;
 		}
 		else {
-		    fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+		    fprintf(stderr, "%s error: no valid input from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"'\n", mybasename(argv[0]), i, max_i, config.file1, i, max_i, config.file2);
 		}
 		exit(EXIT_FAILURE);
 	    }
 	    // line includes newline character at the end
-	    fprintf(tempfile, "%s", line);
+	    fprintf(stdout, "%s", line);
 
 
-	    free(line);
+//	    free(line);
 	}
 	pclose(splitinput);
     }
-
-    retval = fseek(tempfile, 0, SEEK_SET);
-    size_t n = 0;
-    char *line = NULL;
-    while (!feof(tempfile)) {
-	retval = getline(&line, &n, tempfile);
-	if (1 > retval) {
-	    if (errno) {
-		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
-	    }
-	    else {
-		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
-	    }
-	    exit(EXIT_FAILURE);
-	}
-	fprintf(stdout, "%s", line);
-    }
     free(line);
+//    retval = fseek(tempfile, 0, SEEK_SET);
+//    size_t n = 0;
+//    char *line = NULL;
+//    while (!feof(tempfile)) {
+//	retval = getline(&line, &n, tempfile);
+//	if (1 > retval) {
+//	    if (errno) {
+//		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+//	    }
+//	    else {
+//		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+//	    }
+//	    exit(EXIT_FAILURE);
+//	}
+//	fprintf(stdout, "%s", line);
+//
+//
+//    }
 
     return 0;
 }
