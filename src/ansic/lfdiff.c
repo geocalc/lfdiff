@@ -8,6 +8,7 @@
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <stdio.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -16,9 +17,15 @@
 #include <errno.h>
 #include <string.h>
 #include <stdarg.h>
+#include <regex.h>
 
 
+#define MIN(a,b)	((a)<(b)?(a):(b))
 #define MAX(a,b)	((a)>(b)?(a):(b))
+
+#define REGEX_MATCHBUFFER_LEN	6
+
+
 
 static const long default_splitsize = 2ul*1024*1024*1024; // 2GB
 static const char *default_tmpdir = "/tmp";
@@ -59,6 +66,28 @@ void usage(const char *argv0) {
 
 }
 
+
+char *mystrlcpy(char *dest, const char *src, size_t n) {
+    assert(dest);
+    assert(src);
+    assert(n>=0);
+
+    strncpy(dest, src, n - 1);
+    if (n > 0)
+	dest[n - 1]= '\0';
+
+    return dest;
+}
+
+void myregexbuffercpy(char *dest, const char *src, int start, int end, int bufferlen) {
+    assert(dest);
+    assert(src);
+    assert(start>=0);
+    assert(end>=start);
+    assert(bufferlen>=0);
+
+    mystrlcpy(dest, src+start, MIN(bufferlen,end-start+1));
+}
 
 FILE *mypopen(const char *befehl, const char *typ, ...) __attribute__ ((__format__ (__printf__, 1, 3)));
 FILE *mypopen(const char *befehl, const char *typ, ...) {
@@ -171,6 +200,19 @@ int main(int argc, char **argv) {
     char *line = NULL;	// buffer holding one line of diff
     size_t n = 0;	// size of the buffer
 
+    // prepare regular expression
+    regex_t regex;
+    retval = regcomp(&regex, "^([0-9]+),?([0-9]*)([acd])([0-9]+),?([0-9]*)\n$",  REG_EXTENDED/*|REG_NEWLINE*/);
+    if( retval ) {
+	size_t len = regerror(retval, &regex, NULL, 0);
+	char *buffer = malloc(len);
+	assert(buffer);
+	(void) regerror (retval, &regex, buffer, len);
+	fprintf(stderr, "Could not compile regular expression: %s", buffer);
+	free(buffer);
+	exit(EXIT_FAILURE);
+    }
+
     for (i=1; i<=max_i; i++) { // exit loop if both split files return 0 bytes
 	int lines1, lines2;
 	FILE *splitinput;
@@ -230,14 +272,51 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	    }
 	    // line includes newline character at the end
-	    fprintf(stdout, "%s", line);
+//	    fprintf(stdout, "%s", line);
 
+	    regmatch_t matchptr[REGEX_MATCHBUFFER_LEN];
+	    retval = regexec(&regex, line, REGEX_MATCHBUFFER_LEN, matchptr, 0);
+	    if( !retval )
+	    {
+		// Match
+		fprintf(stdout, "%s", line);
+		// TODO
+		int linesA, linesB;
+		char buffer[10];
+		char action[2];
+
+		// extract data
+		myregexbuffercpy(buffer, line, matchptr[1].rm_so, matchptr[1].rm_eo, 10);
+		linesA = atoi(buffer);
+		myregexbuffercpy(buffer, line, matchptr[4].rm_so, matchptr[4].rm_eo, 10);
+		linesB = atoi(buffer);
+		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, 2);
+
+		fprintf(stdout, "found match % 4d to % 4d, %s\n", linesA, linesB, action);
+//		break;
+	    }
+	    else if( retval == REG_NOMATCH )
+	    {
+		// No match
+	    }
+	    else
+	    {
+		size_t len = regerror(retval, &regex, NULL, 0);
+		char *buffer = malloc(len);
+		assert(buffer);
+		(void) regerror (retval, &regex, buffer, len);
+		fprintf(stderr, "Could not compile regular expression: %s", buffer);
+		free(buffer);
+		exit(EXIT_FAILURE);
+	    }
 
 //	    free(line);
 	}
 	pclose(splitinput);
     }
     free(line);
+    regfree(&regex);
+
 //    retval = fseek(tempfile, 0, SEEK_SET);
 //    size_t n = 0;
 //    char *line = NULL;
