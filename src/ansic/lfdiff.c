@@ -218,12 +218,12 @@ int main(int argc, char **argv) {
     }
 
     for (i=1; i<=max_i; i++) { // exit loop if both split files return 0 bytes
-	int lines1, lines2;
+	int linesSplit1, linesSplit2;
 	FILE *splitinput;
 
 	fprintf(stderr, "split input1 %d/%d\n", i, max_i);
 	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.file1);
-	retval = fscanf(splitinput, "%d\n", &lines1);
+	retval = fscanf(splitinput, "%d\n", &linesSplit1);
 	if (1 > retval) {
 	    if (errno) {
 		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
 
 	fprintf(stderr, "split input2 %d/%d\n", i, max_i);
 	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.file2);
-	retval = fscanf(splitinput, "%d\n", &lines2);
+	retval = fscanf(splitinput, "%d\n", &linesSplit2);
 	if (1 > retval) {
 	    if (errno) {
 		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
@@ -249,8 +249,8 @@ int main(int argc, char **argv) {
 	}
 	pclose(splitinput);
 
-	if (!lines1 && !lines2)
-	    break;
+	if (!linesSplit1 && !linesSplit2)
+	    break;	// exit loop if both input files empty
 
 	// use bash for input pipe substitution
 //	char *line;
