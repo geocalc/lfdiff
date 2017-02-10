@@ -49,5 +49,7 @@ struct diff_iterator *diff_go_after_line(struct diff_list_s *list, int n);
 void diff_iterator_go_before_line(struct diff_iterator **iterator, int n);
 void diff_iterator_go_after_line(struct diff_iterator **iterator, int n);
 
+const char *diff_get_line(struct diff_iterator *iterator);
+int diff_get_line_nr(struct diff_iterator *iterator);
 
 #endif /* SRC_ANSIC_DIFFLIST_H_ */
