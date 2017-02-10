@@ -50,6 +50,10 @@ struct config {
 
 struct runtime {
     const char *argv0;
+    unsigned long currentlineFileA;
+    unsigned long currentlineFileB;
+    unsigned long lineOffsetFileA;
+    unsigned long lineOffsetFileB;
 } runtime = {0};
 
 void usage(const char *argv0) {
@@ -293,11 +297,32 @@ int main(int argc, char **argv) {
 		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, 2);
 
 		fprintf(stdout, "found match % 4d to % 4d, %s\n", linesA, linesB, action);
-//		break;
+
+		runtime.currentlineFileA = linesA + runtime.lineOffsetFileA;
+		runtime.currentlineFileB = linesB + runtime.lineOffsetFileB;
 	    }
 	    else if( retval == REG_NOMATCH )
 	    {
-		// No match
+		// No match on diff header
+
+		switch (*line) {
+		case '>':
+		    break;
+
+		case '<':
+		    break;
+
+		case '-':
+		    if ('-'==line[1] && '-'==line[2])
+			break;	// regular split between '<' and '>', do nothing
+		    // else
+		    //   error out in default case
+
+		    // no break, fall through
+		default:
+		    fprintf(stderr, "%s error: can not recognise diff line \"%s\"\n", mybasename(argv[0]), line);
+		    exit(EXIT_FAILURE);
+		}
 	    }
 	    else
 	    {
