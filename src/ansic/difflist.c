@@ -132,8 +132,14 @@ struct diff_iterator *diff_iterator_get_line(struct diff_list_s *list, long n) {
 
     if (list->tqh_current) {
 	diff_iterator_go_equal_before_line(&list->tqh_current, n);
-	if (n == list->tqh_current->n)
-	    return list->tqh_current;
+	if (list->tqh_current) {
+	    if (n == list->tqh_current->n)
+		return list->tqh_current;
+	}
+	else {
+	    // list->tqh_current is NULL, set to first entry and return NULL
+	    diff_iterator_get_first(list);
+	}
     }
 
     return NULL;
