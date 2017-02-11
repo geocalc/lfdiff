@@ -47,8 +47,8 @@ void diff_iterator_next(struct diff_iterator **iterator);
 void diff_iterator_previous(struct diff_iterator **iterator);
 struct diff_iterator *diff_go_before_line(struct diff_list_s *list, long n);
 struct diff_iterator *diff_go_after_line(struct diff_list_s *list, long n);
-void diff_iterator_go_before_line(struct diff_iterator **iterator, long n);
-void diff_iterator_go_after_line(struct diff_iterator **iterator, long n);
+void diff_iterator_go_equal_before_line(struct diff_iterator **iterator, long n);
+void diff_iterator_go_equal_after_line(struct diff_iterator **iterator, long n);
 
 const char *diff_get_line(struct diff_iterator *iterator);
 long diff_get_line_nr(struct diff_iterator *iterator);

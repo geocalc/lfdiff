@@ -44,7 +44,7 @@ void diff_add_line(struct diff_list_s *list, long n, char *line) {
 
     struct diff_iterator *iterator;
     if (NULL != (iterator = list->tqh_current)) {
-	diff_iterator_go_after_line(&iterator, n);
+	diff_iterator_go_equal_after_line(&iterator, n);
 
 	if (iterator) {
 	    // somewhere in the list.
@@ -87,7 +87,7 @@ void diff_remove_line(struct diff_list_s *list, long n) {
     struct diff_iterator *iterator;
 //    if (NULL != (iterator = TAILQ_FIRST(&list->head))) {
     if (NULL != (iterator = list->tqh_current)) {
-	diff_iterator_go_after_line(&iterator, n);
+	diff_iterator_go_equal_after_line(&iterator, n);
 	if (iterator->n == n) {
 	    // correct current pointer to previous or next (whatever is valid)
 	    if ((list->tqh_current = TAILQ_NEXT(iterator, entries))) {
@@ -186,7 +186,7 @@ void diff_iterator_previous(struct diff_iterator **iterator) {
 //    }
 //}
 
-void diff_iterator_go_before_line(struct diff_iterator **iterator, long n) {
+void diff_iterator_go_equal_before_line(struct diff_iterator **iterator, long n) {
     assert(iterator);
     assert(*iterator);
 
@@ -198,7 +198,7 @@ void diff_iterator_go_before_line(struct diff_iterator **iterator, long n) {
     }
 }
 
-void diff_iterator_go_after_line(struct diff_iterator **iterator, long n) {
+void diff_iterator_go_equal_after_line(struct diff_iterator **iterator, long n) {
     assert(iterator);
     assert(*iterator);
 
