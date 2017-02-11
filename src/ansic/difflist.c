@@ -32,7 +32,7 @@ void diff_delete(struct diff_list_s *list) {
 }
 
 
-void diff_add_line(struct diff_list_s *list, int n, char *line) {
+void diff_add_line(struct diff_list_s *list, long n, char *line) {
     assert(list);
 
     struct diff_iterator *knot = calloc(1, sizeof(*knot));
@@ -69,7 +69,7 @@ void diff_add_line(struct diff_list_s *list, int n, char *line) {
     list->tqh_current = knot;
 }
 
-//void diff_add_line_i(struct diff_iterator **iterator, int n, char *line) {
+//void diff_add_line_i(struct diff_iterator **iterator, long n, char *line) {
 //    assert(iterator);
 //    assert(*iterator);
 //
@@ -78,7 +78,7 @@ void diff_add_line(struct diff_list_s *list, int n, char *line) {
 //    }
 //}
 
-void diff_remove_line(struct diff_list_s *list, int n) {
+void diff_remove_line(struct diff_list_s *list, long n) {
     assert(list);
 
     // remember to correct current_iterator
@@ -101,7 +101,7 @@ void diff_remove_line(struct diff_list_s *list, int n) {
     }
 }
 
-//void diff_remove_line_i(struct diff_iterator **iterator, int n) {
+//void diff_remove_line_i(struct diff_iterator **iterator, long n) {
 //    assert(iterator);
 //    assert(*iterator);
 //
@@ -153,7 +153,7 @@ void diff_iterator_previous(struct diff_iterator **iterator) {
     *iterator = TAILQ_PREV(*iterator, listhead, entries);
 }
 
-//struct diff_iterator *diff_go_before_line(struct diff_list_s *list, int n) {
+//struct diff_iterator *diff_go_before_line(struct diff_list_s *list, long n) {
 //    assert(list);
 //    assert(n>0);
 //
@@ -162,7 +162,7 @@ void diff_iterator_previous(struct diff_iterator **iterator) {
 //	}
 //}
 //
-//struct diff_iterator *diff_go_after_line(struct diff_list_s *list, int n) {
+//struct diff_iterator *diff_go_after_line(struct diff_list_s *list, long n) {
 //    assert(list);
 //    assert(n>0);
 //
@@ -172,7 +172,7 @@ void diff_iterator_previous(struct diff_iterator **iterator) {
 //    }
 //}
 
-void diff_iterator_go_before_line(struct diff_iterator **iterator, int n) {
+void diff_iterator_go_before_line(struct diff_iterator **iterator, long n) {
     assert(iterator);
     assert(*iterator);
 
@@ -184,7 +184,7 @@ void diff_iterator_go_before_line(struct diff_iterator **iterator, int n) {
     }
 }
 
-void diff_iterator_go_after_line(struct diff_iterator **iterator, int n) {
+void diff_iterator_go_after_line(struct diff_iterator **iterator, long n) {
     assert(iterator);
     assert(*iterator);
 
@@ -202,7 +202,7 @@ const char *diff_get_line(struct diff_iterator *iterator) {
     return iterator->line;
 }
 
-int diff_get_line_nr(struct diff_iterator *iterator) {
+long diff_get_line_nr(struct diff_iterator *iterator) {
     assert(iterator);
 
     return iterator->n;
