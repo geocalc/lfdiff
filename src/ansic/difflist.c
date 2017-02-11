@@ -29,6 +29,8 @@ void diff_delete(struct diff_list_s *list) {
 	TAILQ_REMOVE(&list->head, entry, entries);
 	free(entry);
     }
+
+    free(list);
 }
 
 
