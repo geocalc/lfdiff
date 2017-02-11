@@ -4,7 +4,7 @@ CFLAGS=-O0 -ggdb -Wall -I.
 #LDFLAGS=
 #LINK.o = $(LINK.cc)	# set cpp linker by default
 
-OBJECTS=lfdiff.o difflist.o
+OBJECTS=lfdiff.o difflist.o diffmanager.o
 #HEADER=$(patsubst %.o,%.h,$(OBJECTS))
 
 all: lfdiff
