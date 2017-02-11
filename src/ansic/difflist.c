@@ -112,13 +112,13 @@ void diff_remove_line(struct diff_list_s *list, long n) {
 struct diff_iterator *diff_iterator_get_first(struct diff_list_s *list) {
     assert(list);
 
-    return TAILQ_FIRST(&list->head);
+    return list->tqh_current = TAILQ_FIRST(&list->head);
 }
 
 struct diff_iterator *diff_iterator_get_last(struct diff_list_s *list) {
     assert(list);
 
-    return TAILQ_LAST(&list->head, listhead);
+    return list->tqh_current = TAILQ_LAST(&list->head, listhead);
 }
 
 struct diff_iterator *diff_iterator_get_current(struct diff_list_s *list) {
