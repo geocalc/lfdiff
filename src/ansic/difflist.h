@@ -40,6 +40,7 @@ void diff_remove_line_i(struct diff_iterator **iterator, long n);
 struct diff_iterator *diff_iterator_get_first(struct diff_list_s *list);
 struct diff_iterator *diff_iterator_get_last(struct diff_list_s *list);
 struct diff_iterator *diff_iterator_get_current(struct diff_list_s *list);
+struct diff_iterator *diff_iterator_get_line(struct diff_list_s *list, long n);
 void diff_next(struct diff_list_s *list);
 void diff_previous(struct diff_list_s *list);
 void diff_iterator_next(struct diff_iterator **iterator);

@@ -127,6 +127,18 @@ struct diff_iterator *diff_iterator_get_current(struct diff_list_s *list) {
     return list->tqh_current;
 }
 
+struct diff_iterator *diff_iterator_get_line(struct diff_list_s *list, long n) {
+    assert(list);
+
+    if (list->tqh_current) {
+	diff_iterator_go_equal_before_line(&list->tqh_current, n);
+	if (n == list->tqh_current->n)
+	    return list->tqh_current;
+    }
+
+    return NULL;
+}
+
 void diff_next(struct diff_list_s *list) {
     assert(list);
 
