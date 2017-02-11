@@ -28,7 +28,8 @@
 */
 
 #define _GNU_SOURCE
-#include "difflist.h"
+#include "diffmanager.h"
+
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -78,8 +79,7 @@ struct runtime {
     unsigned long currentlineFileB;
     unsigned long lineOffsetFileA;
     unsigned long lineOffsetFileB;
-    struct diff_list_s *difflistFileA;
-    struct diff_list_s *difflistFileB;
+    struct diffmanager_s *diffmanager;
 } runtime = {0};
 
 void usage(const char *argv0) {
@@ -226,8 +226,7 @@ int main(int argc, char **argv) {
     }
     const int max_i = i+1;
 
-    runtime.difflistFileA = diff_new();
-    runtime.difflistFileB = diff_new();
+    runtime.diffmanager = diffmanager_new();
 
 //    FILE *tempfile = tmpfile();
     char *line = NULL;	// buffer holding one line of diff
@@ -312,7 +311,7 @@ int main(int argc, char **argv) {
 	    if( !retval )
 	    {
 		// Match
-		fprintf(stdout, "%s", line);
+//		fprintf(stdout, "%s", line);
 		// TODO
 		int linesA, linesB;
 		char buffer[10];
@@ -325,7 +324,7 @@ int main(int argc, char **argv) {
 		linesB = atoi(buffer);
 		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, 2);
 
-		fprintf(stdout, "found match % 4d to % 4d, %s\n", linesA, linesB, action);
+//		fprintf(stdout, "found match % 4d to % 4d, %s\n", linesA, linesB, action);
 
 		runtime.currentlineFileA = linesA + runtime.lineOffsetFileA;
 		runtime.currentlineFileB = linesB + runtime.lineOffsetFileB;
@@ -335,10 +334,12 @@ int main(int argc, char **argv) {
 		// No match on diff header
 
 		switch (*line) {
-		case '>':
+		case '<':
+		    diffmanager_input_diff(runtime.diffmanager, strdup(&line[2]), runtime.currentlineFileA++, A);
 		    break;
 
-		case '<':
+		case '>':
+		    diffmanager_input_diff(runtime.diffmanager, strdup(&line[2]), runtime.currentlineFileB++, B);
 		    break;
 
 		case '-':
@@ -367,12 +368,20 @@ int main(int argc, char **argv) {
 //	    free(line);
 	}
 	pclose(splitinput);
+
+	runtime.lineOffsetFileA += linesSplit1;
+	runtime.lineOffsetFileB += linesSplit2;
     }
     free(line);
     regfree(&regex);
 
-    diff_delete(runtime.difflistFileA);
-    diff_delete(runtime.difflistFileB);
+    // printout diff
+    runtime.currentlineFileA =
+	    runtime.currentlineFileB = 0;
+
+    diffmanager_output_diff(runtime.diffmanager, stdout, 0);
+
+    diffmanager_delete(runtime.diffmanager);
 
 //    retval = fseek(tempfile, 0, SEEK_SET);
 //    size_t n = 0;
