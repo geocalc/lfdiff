@@ -335,11 +335,11 @@ int main(int argc, char **argv) {
 
 		switch (*line) {
 		case '<':
-		    diffmanager_input_diff(runtime.diffmanager, strdup(&line[2]), runtime.currentlineFileA++, A);
+		    diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileA++);
 		    break;
 
 		case '>':
-		    diffmanager_input_diff(runtime.diffmanager, strdup(&line[2]), runtime.currentlineFileB++, B);
+		    diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileB++);
 		    break;
 
 		case '-':

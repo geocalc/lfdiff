@@ -44,10 +44,6 @@ struct diffmanager_s {
     long lastOutputB;
 };
 
-enum file_e {
-    A,
-    B
-};
 
 struct diffmanager_s *diffmanager_new(void);
 void diffmanager_delete(struct diffmanager_s *manager);
@@ -61,7 +57,7 @@ void diffmanager_delete(struct diffmanager_s *manager);
  * @param nr: line number
  * @param AorB: line belongs to file A or B
  */
-void diffmanager_input_diff(struct diffmanager_s *manager, char *line, long nr, enum file_e AorB);
+void diffmanager_input_diff(struct diffmanager_s *manager, const char *line, long nr);
 
 /** output diff up to line nr to stream output.
  *

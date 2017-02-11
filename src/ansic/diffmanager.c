@@ -57,27 +57,31 @@ void diffmanager_delete(struct diffmanager_s *manager) {
 }
 
 
-void diffmanager_input_diff(struct diffmanager_s *manager, char *line, long nr, enum file_e AorB) {
+void diffmanager_input_diff(struct diffmanager_s *manager, const char *line, long nr) {
     assert(manager);
     assert(line);
     assert(nr>0);
-    assert(AorB==A || AorB==B);
 
-    switch (AorB) {
-    case A:
-	diff_add_line(manager->difflistA, nr, line);
+    if (' ' != line[1]) {
+	fprintf(stderr, "error: can not recognise diff line \"%s\"\n", line);
+	abort();
+    }
+
+    switch (*line) {
+    case '<':
+	diff_add_line(manager->difflistA, nr, strdup(&line[2]));
 	if (nr > manager->maxlineA)
 	    manager->maxlineA = nr;
 	break;
 
-    case B:
-	diff_add_line(manager->difflistB, nr, line);
+    case '>':
+	diff_add_line(manager->difflistB, nr, strdup(&line[2]));
 	if (nr > manager->maxlineB)
 	    manager->maxlineB = nr;
 	break;
 
     default:
-	fprintf(stderr, "error: program error, variable AorB=%d", AorB);
+	fprintf(stderr, "error: can not recognise diff line \"%s\"\n", line);
 	abort();
     }
 }
