@@ -313,16 +313,18 @@ int main(int argc, char **argv) {
 		// Match
 //		fprintf(stdout, "%s", line);
 		// TODO
-		int linesA, linesB;
-		char buffer[10];
-		char action[2];
+		static const int bufferlen = 32;
+		static const int actionlen = 2;
+		long linesA, linesB;
+		char buffer[bufferlen];
+		char action[actionlen];
 
 		// extract data
-		myregexbuffercpy(buffer, line, matchptr[1].rm_so, matchptr[1].rm_eo, 10);
-		linesA = atoi(buffer);
-		myregexbuffercpy(buffer, line, matchptr[4].rm_so, matchptr[4].rm_eo, 10);
-		linesB = atoi(buffer);
-		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, 2);
+		myregexbuffercpy(buffer, line, matchptr[1].rm_so, matchptr[1].rm_eo, bufferlen);
+		linesA = atol(buffer);
+		myregexbuffercpy(buffer, line, matchptr[4].rm_so, matchptr[4].rm_eo, bufferlen);
+		linesB = atol(buffer);
+		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, actionlen);
 
 //		fprintf(stdout, "found match % 4d to % 4d, %s\n", linesA, linesB, action);
 
@@ -333,23 +335,31 @@ int main(int argc, char **argv) {
 	    {
 		// No match on diff header
 
-		switch (*line) {
-		case '<':
-		    diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileA++);
-		    break;
+		// string at least needs to have '<' or '>' and space character
+		if (2 <= strlen(line)) {
+		    switch (*line) {
+		    case '<':
+			diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileA++);
+			break;
 
-		case '>':
-		    diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileB++);
-		    break;
+		    case '>':
+			diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileB++);
+			break;
 
-		case '-':
-		    if ('-'==line[1] && '-'==line[2])
-			break;	// regular split between '<' and '>', do nothing
-		    // else
-		    //   error out in default case
+		    case '-':
+			// we can test on line[2] without pointer failure
+			if ('-'==line[1] && '-'==line[2])
+			    break;	// regular split between '<' and '>', do nothing
+			// else
+			//   error out in default case
 
-		    // no break, fall through
-		default:
+			// no break, fall through
+		    default:
+			fprintf(stderr, "%s error: can not recognise diff line \"%s\"\n", mybasename(argv[0]), line);
+			exit(EXIT_FAILURE);
+		    }
+		}
+		else {
 		    fprintf(stderr, "%s error: can not recognise diff line \"%s\"\n", mybasename(argv[0]), line);
 		    exit(EXIT_FAILURE);
 		}
