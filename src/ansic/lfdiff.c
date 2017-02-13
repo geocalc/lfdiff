@@ -53,7 +53,7 @@
 
 
 
-static const long default_splitsize = 2ul*1024*1024*1024; // 2GB
+static const long default_splitsize = 2l*1024*1024*1024; // 2GB
 //static const char *default_tmpdir = "/tmp";
 
 
