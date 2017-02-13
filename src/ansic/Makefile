@@ -1,8 +1,11 @@
 
-CFLAGS=-O0 -ggdb -Wall -I.
+CFLAGS?=-O2
+#CFLAGS?=-O0
 #CXXFLAGS=$(CFLAGS)
 #LDFLAGS=
 #LINK.o = $(LINK.cc)	# set cpp linker by default
+
+CFLAGS+= -I. -Wall
 
 OBJECTS=lfdiff.o difflist.o diffmanager.o
 #HEADER=$(patsubst %.o,%.h,$(OBJECTS))
