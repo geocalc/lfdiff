@@ -92,8 +92,11 @@ void diffmanager_output_diff(struct diffmanager_s *manager, FILE *output, long m
     assert(output);
     assert(maxLineNr>=0);
 
+    // remove doublettes before pushing them out
+    diffmanager_remove_common_lines(manager, maxLineNr);
+
     /* Algorithm:
-     * 0) start the current line numbers A nd B with 0
+     * 0) start the current line numbers A and B with 0
      * 1) go to the first entry in container A and B
      * 2) get the line number of first entry in container A and B
      * 3) get the difference to the current line numbers A and B
