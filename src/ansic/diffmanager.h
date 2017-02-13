@@ -76,4 +76,6 @@ void diffmanager_delete_diff(struct diffmanager_s *manager, long maxLineNr);
 
 long diffmanager_get_max_common_input_line(struct diffmanager_s *manager);
 
+void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLineNr);
+
 #endif /* SRC_ANSIC_DIFFMANAGER_H_ */
