@@ -314,6 +314,12 @@ int main(int argc, char **argv) {
 	exit(EXIT_FAILURE);
     }
 
+    FILE *outfile = config.outfilename?fopen(config.outfilename, "w"):stdout;
+    if (NULL == outfile) {
+	fprintf(stderr, "error: could not open output file '%s': %s\n", config.outfilename, strerror(errno));
+	exit(EXIT_FAILURE);
+    }
+
     for (i=1; i<=max_i; i++) { // exit loop if both split files return 0 bytes
 	int linesSplit1, linesSplit2;
 	FILE *splitinput;
@@ -458,7 +464,7 @@ int main(int argc, char **argv) {
     runtime.currentlineFileA =
 	    runtime.currentlineFileB = 0;
 
-    diffmanager_output_diff(runtime.diffmanager, stdout, 0);
+    diffmanager_output_diff(runtime.diffmanager, outfile, 0);
 
     diffmanager_delete(runtime.diffmanager);
 
