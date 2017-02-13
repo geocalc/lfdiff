@@ -87,7 +87,7 @@ void usage(const char *argv0) {
 
     fprintf(stderr, "usage: %s [-h] [-V] [-v] [-o OUTPUT] [-s SPLITSIZE] INPUT1 INPUT2\n"
 	    "\t-h: print this help\n"
-	    "\t-V: print version\n"
+//	    "\t-V: print version\n"
 	    "\t-o: write output to OUTFILE instead of stdout\n"
 	    "\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: %ld byte)\n"
 	    "\t-v: be verbose\n"
@@ -153,7 +153,7 @@ int main(int argc, char **argv) {
 
     int opt;
 
-    while ((opt = getopt(argc, argv, "hVvo:s:")) != -1)
+    while ((opt = getopt(argc, argv, "hvo:s:")) != -1)
     {
 	switch (opt)
 	{
@@ -163,9 +163,9 @@ int main(int argc, char **argv) {
 	case 'v':
 	    config.be_verbose = 1;
 	    break;
-	case 'V':
+//	case 'V':
 //	    print_version();
-	    exit(EXIT_SUCCESS);
+//	    exit(EXIT_SUCCESS);
 	case 'o':
 	    config.outfilename = optarg;
 	    break;
