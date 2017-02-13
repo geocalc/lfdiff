@@ -43,6 +43,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include <regex.h>
+#include <limits.h>
 
 
 #define MIN(a,b)	((a)<(b)?(a):(b))
@@ -145,6 +146,7 @@ FILE *mypopen(const char *befehl, const char *typ, ...) {
 
 int main(int argc, char **argv) {
     int retval;
+    regex_t regex;
 
     runtime.argv0 = argv[0];
     config.splitsize = default_splitsize;
@@ -168,7 +170,75 @@ int main(int argc, char **argv) {
 	    config.outfilename = optarg;
 	    break;
 	case 's':
-	    config.splitsize = atol(optarg);
+	{
+	    retval = regcomp(&regex, "^([0-9]+)([kMG]?)B?$",  REG_EXTENDED/*|REG_NEWLINE*/);
+	    if( retval ) {
+		size_t len = regerror(retval, &regex, NULL, 0);
+		char *buffer = malloc(len);
+		assert(buffer);
+		(void) regerror (retval, &regex, buffer, len);
+		fprintf(stderr, "Could not compile regular expression: %s", buffer);
+		free(buffer);
+		exit(EXIT_FAILURE);
+	    }
+
+	    regmatch_t matchptr[3];
+	    retval = regexec(&regex, optarg, 3, matchptr, 0);
+	    if( !retval )
+	    {
+		// Match
+		static const int bufferlen = 32;
+		char buffer[bufferlen];
+
+		// extract data
+		myregexbuffercpy(buffer, optarg, matchptr[1].rm_so, matchptr[1].rm_eo, bufferlen);
+		config.splitsize = atol(buffer);
+		if (matchptr[2].rm_so != matchptr[2].rm_eo) {
+		    myregexbuffercpy(buffer, optarg, matchptr[2].rm_so, matchptr[2].rm_eo, bufferlen);
+		    switch (*buffer) {
+		    case 'G':
+			if (config.splitsize >= LONG_MAX/1024) {
+			    fprintf(stderr, "Integer overflow error parsing option -s '%s'\n", optarg);
+			    exit(EXIT_FAILURE);
+			}
+			config.splitsize *= 1024;
+			// no break, fall through
+		    case 'M':
+			if (config.splitsize >= LONG_MAX/1024) {
+			    fprintf(stderr, "Integer overflow error parsing option -s '%s'\n", optarg);
+			    exit(EXIT_FAILURE);
+			}
+			config.splitsize *= 1024;
+			// no break, fall through
+		    case 'k':
+			if (config.splitsize >= LONG_MAX/1024) {
+			    fprintf(stderr, "Integer overflow error parsing option -s '%s'\n", optarg);
+			    exit(EXIT_FAILURE);
+			}
+			config.splitsize *= 1024;
+			break;
+
+		    default:
+			fprintf(stderr, "Program error parsing '%s'", optarg);
+			exit(EXIT_FAILURE);
+		    }
+		}
+	    }
+	    else if( retval == REG_NOMATCH )
+	    {
+		// No match on diff header
+	    }
+	    else
+	    {
+		size_t len = regerror(retval, &regex, NULL, 0);
+		char *buffer = malloc(len);
+		assert(buffer);
+		(void) regerror (retval, &regex, buffer, len);
+		fprintf(stderr, "Could not compile regular expression: %s", buffer);
+		free(buffer);
+		exit(EXIT_FAILURE);
+	    }
+	}
 	    break;
 	default: /* '?' */
 	    usage(argv[0]);
@@ -233,7 +303,6 @@ int main(int argc, char **argv) {
     size_t n = 0;	// size of the buffer
 
     // prepare regular expression
-    regex_t regex;
     retval = regcomp(&regex, "^([0-9]+),?([0-9]*)([acd])([0-9]+),?([0-9]*)\n$",  REG_EXTENDED/*|REG_NEWLINE*/);
     if( retval ) {
 	size_t len = regerror(retval, &regex, NULL, 0);
