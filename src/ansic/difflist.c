@@ -30,6 +30,7 @@
 #include "difflist.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <assert.h>
 
 struct diff_list_s *diff_new(void) {
@@ -247,6 +248,15 @@ long diff_get_line_nr(struct diff_iterator *iterator) {
     assert(iterator);
 
     return iterator->n;
+}
+
+void diff_print(struct diff_list_s *list) {
+    assert(list);
+
+    struct diff_iterator *iterator;
+    TAILQ_FOREACH(iterator, &list->head, entries) {
+	printf("%ld:%s", iterator->n, iterator->line);
+    }
 }
 
 
