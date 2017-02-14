@@ -110,7 +110,7 @@ void diff_remove_line(struct diff_list_s *list, long n) {
 //    if (NULL != (iterator = TAILQ_FIRST(&list->head))) {
     if (NULL != (iterator = list->tqh_current)) {
 	diff_iterator_go_equal_after_line(&iterator, n);
-	if (iterator->n == n) {
+	if (iterator && iterator->n == n) {
 	    // correct current pointer to previous or next (whatever is valid)
 	    if ((list->tqh_current = TAILQ_NEXT(iterator, entries))) {
 	    }
