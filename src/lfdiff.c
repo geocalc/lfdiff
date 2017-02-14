@@ -51,6 +51,11 @@
 
 #define REGEX_MATCHBUFFER_LEN	6
 
+#define PRINT_VERBOSE(stream, text, ...) \
+    do { \
+	if (config.be_verbose) \
+	    fprintf((stream), (text), ##__VA_ARGS__); \
+    } while (0)
 
 
 static const long default_splitsize = 2l*1024*1024*1024; // 2GB
@@ -328,7 +333,7 @@ int main(int argc, char **argv) {
 	int linesSplit1, linesSplit2;
 	FILE *splitinput;
 
-	fprintf(stderr, "split input1 %d/%d\n", i, max_i);
+	PRINT_VERBOSE(stderr, "split input1 %d/%d\n", i, max_i);
 	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.file1);
 	retval = fscanf(splitinput, "%d\n", &linesSplit1);
 	if (1 > retval) {
@@ -342,7 +347,7 @@ int main(int argc, char **argv) {
 	}
 	pclose(splitinput);
 
-	fprintf(stderr, "split input2 %d/%d\n", i, max_i);
+	PRINT_VERBOSE(stderr, "split input2 %d/%d\n", i, max_i);
 	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.file2);
 	retval = fscanf(splitinput, "%d\n", &linesSplit2);
 	if (1 > retval) {
@@ -361,7 +366,7 @@ int main(int argc, char **argv) {
 
 	// use bash for input pipe substitution
 //	char *line;
-	fprintf(stderr, "diff input %d/%d\n", i, max_i);
+	PRINT_VERBOSE(stderr, "diff input %d/%d\n", i, max_i);
 	splitinput = mypopen ("bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"", "r", i, max_i, config.file1, i, max_i, config.file2);
 	while (!feof(splitinput)) {
 //	    size_t n=0;
