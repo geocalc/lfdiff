@@ -17,7 +17,15 @@ AC_PROG_LIBTOOL
 # Use pkg-config instead of upstream-provided and possibly-broken
 # AM_PATH_CHECK. This command sets CHECK_CFLAGS and CHECK_LIBS
 # appropriately.
-PKG_CHECK_MODULES([CHECK], [check])
+# TODO test for "check" only if --enable-test is provided on the command line
+AC_ARG_ENABLE([test],
+	[AS_HELP_STRING([--enable-test],
+		[enable unit tests, i.e. make check [default=no]])],
+	[],
+	[enable_test=no])
+
+AS_IF([test "x$enable_test" != xno],
+            [PKG_CHECK_MODULES([CHECK], [check])])
 
 # Checks for header files.
 AC_HEADER_STDC
