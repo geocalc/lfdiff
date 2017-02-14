@@ -154,14 +154,9 @@ struct diff_iterator *diff_iterator_get_line(struct diff_list_s *list, long n) {
 
     if (list->tqh_current) {
 	diff_iterator_go_equal_before_line(&list->tqh_current, n);
-	if (list->tqh_current) {
-	    if (n == list->tqh_current->n)
-		return list->tqh_current;
-	}
-	else {
-	    // list->tqh_current is NULL, set to first entry and return NULL
-	    diff_iterator_get_first(list);
-	}
+	assert(list->tqh_current);
+	if (n == list->tqh_current->n)
+	    return list->tqh_current;
     }
 
     return NULL;
@@ -218,11 +213,21 @@ void diff_iterator_go_equal_before_line(struct diff_iterator **iterator, long n)
     assert(iterator);
     assert(*iterator);
 
+    struct diff_iterator *old;
     while (*iterator && (*iterator)->n < n) {
+	old = *iterator;
 	diff_iterator_next(iterator);
     }
+    if (!*iterator)
+	*iterator = old;
     while (*iterator && (*iterator)->n > n) {
+	old = *iterator;
 	diff_iterator_previous(iterator);
+    }
+    if (!*iterator) {
+	// iterator == NULL: bump at the beginning
+	// set iterator to first entry
+	*iterator = old;
     }
 }
 
@@ -230,11 +235,22 @@ void diff_iterator_go_equal_after_line(struct diff_iterator **iterator, long n) 
     assert(iterator);
     assert(*iterator);
 
+    struct diff_iterator *old;
     while (*iterator && (*iterator)->n > n) {
+	old = *iterator;
 	diff_iterator_previous(iterator);
     }
-    while (*iterator && (*iterator)->n < n) {
-	diff_iterator_next(iterator);
+    if (!*iterator) {
+	// iterator == NULL: bump at the beginning
+	// set iterator to first entry
+	*iterator = old;
+    }
+    else {
+	while (*iterator && (*iterator)->n < n) {
+	    diff_iterator_next(iterator);
+	}
+	// if iterator == NULL: bump at the end.
+	// leave it that way
     }
 }
 
