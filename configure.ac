@@ -5,11 +5,19 @@ AC_PREREQ([2.69])
 AC_INIT([lfdiff], [0.5], [jh@mwerk.net])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_SRCDIR([src/diffmanager.c])
+AC_CONFIG_MACRO_DIRS([m4])
 
 # Checks for programs.
 AC_PROG_CC
+AM_PROG_AR
+AC_PROG_LIBTOOL
 
 # Checks for libraries.
+
+# Use pkg-config instead of upstream-provided and possibly-broken
+# AM_PATH_CHECK. This command sets CHECK_CFLAGS and CHECK_LIBS
+# appropriately.
+PKG_CHECK_MODULES([CHECK], [check])
 
 # Checks for header files.
 AC_HEADER_STDC
@@ -25,5 +33,5 @@ AC_CHECK_FUNCS([regcomp strdup strerror])
 
 # Output files
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_FILES([Makefile src/Makefile tests/Makefile])
 AC_OUTPUT
