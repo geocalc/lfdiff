@@ -11,6 +11,36 @@
 
 #include "../src/difflist.h"
 
+/*
+ * NOTE: use "CK_FORK=no gdb check_lfdiff" to debug this
+ */
+
+
+/* service function:
+ * realloc the given target pointer so the source pointer fits in.
+ */
+char *strmcat(char **dst, size_t *len, const char *src)
+{
+    ck_assert(NULL != dst);
+    ck_assert(NULL != len);
+    ck_assert_int_ge(*len, 0);
+    ck_assert(NULL != src);
+
+    const size_t srclen = strlen(src);
+    const size_t dstlen = *dst? strlen(*dst): 0;
+    const size_t oldlen = *len;
+
+    if (*len < dstlen+srclen+1) {
+	*len = dstlen+srclen+1;
+	*dst = realloc(*dst, *len);
+    }
+    if (!oldlen)
+	**dst = 0;	// set new allocated string to len=0
+    strcat(*dst, src);
+
+    return *dst;
+}
+
 
 struct diff_list_s *difflist = NULL;
 
@@ -31,6 +61,46 @@ teardown_difflist (void)
 
 
 /* --- Tests --- */
+
+START_TEST (test_suptest_malloc_string)
+{
+    static const char t_1[] = "";
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, t_1);
+    ck_assert(NULL != stcmp);
+    ck_assert_str_eq(stcmp, t_1);
+    ck_assert_int_eq(len, strlen(t_1)+1);
+    free(stcmp);
+}
+END_TEST
+
+START_TEST (test_suptest_add_string)
+{
+#define ts1	"add\n"
+#define ts2	"add2\n"
+    static const char t_1[] = ts1;
+    static const char t_2[] = ts2;
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, t_1);
+    ck_assert(NULL != stcmp);
+    ck_assert_str_eq(stcmp, t_1);
+    ck_assert_int_eq(len, strlen(t_1)+1);
+
+    strmcat(&stcmp, &len, t_2);
+    ck_assert_str_eq(stcmp, ts1 ts2);
+    ck_assert_int_eq(len, strlen(t_1)+strlen(t_2)+1);
+
+#undef ts1
+#undef ts2
+    free(stcmp);
+}
+END_TEST
+
+
 
 START_TEST (test_difflist_create)
 {
@@ -318,6 +388,20 @@ END_TEST
 /* --- Test framework --- */
 
 Suite *
+support_test_suite (void)
+{
+    Suite *s = suite_create ("Support Tests");
+
+    /* Core test case */
+    TCase *tc_difflist = tcase_create ("Core");
+    tcase_add_test (tc_difflist, test_suptest_malloc_string);
+    tcase_add_test (tc_difflist, test_suptest_add_string);
+    suite_add_tcase (s, tc_difflist);
+
+    return s;
+}
+
+Suite *
 difflist_suite (void)
 {
   Suite *s = suite_create ("Diff List");
@@ -339,11 +423,17 @@ difflist_suite (void)
   return s;
 }
 
+/*
+ * NOTE: use "CK_FORK=no gdb check_lfdiff" to debug this
+ */
+
 int main(void)
 {
     int number_failed;
-    Suite *s = difflist_suite ();
-    SRunner *sr = srunner_create (s);
+    Suite *st = support_test_suite();
+    Suite *sl = difflist_suite ();
+    SRunner *sr = srunner_create (st);
+    srunner_add_suite(sr, sl);
     srunner_run_all (sr, CK_VERBOSE);
     number_failed = srunner_ntests_failed (sr);
     srunner_free (sr);
