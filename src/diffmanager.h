@@ -59,7 +59,8 @@ void diffmanager_delete(struct diffmanager_s *manager);
  */
 void diffmanager_input_diff(struct diffmanager_s *manager, const char *line, long nr);
 
-/** output diff up to line nr to stream output.
+/** output diff up to line maxLineNr to stream output.
+ * note: calls diffmanager_remove_common_lines() and diffmanager_delete_diff() during execution
  *
  * @param manager: diffmanager handler
  * @param output: stream to print to
@@ -77,5 +78,7 @@ void diffmanager_delete_diff(struct diffmanager_s *manager, long maxLineNr);
 long diffmanager_get_max_common_input_line(struct diffmanager_s *manager);
 
 void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLineNr);
+
+void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *output, long maxLineNr);
 
 #endif /* SRC_ANSIC_DIFFMANAGER_H_ */
