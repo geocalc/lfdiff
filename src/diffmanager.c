@@ -317,6 +317,31 @@ void diffmanager_delete_diff(struct diffmanager_s *manager, long maxLineNr) {
     assert(manager);
     assert(maxLineNr>=0);
 
+    struct diff_iterator *it;
+    it = diff_iterator_get_first(manager->difflistA);
+    if (it) {
+	long lineNr = diff_get_line_nr(it);
+	while (lineNr <= maxLineNr) {
+	    diff_remove_line(manager->difflistA,lineNr);
+	    it = diff_iterator_get_first(manager->difflistA);
+	    if (!it)
+		break;
+	    lineNr = diff_get_line_nr(it);
+	}
+    }
+
+    it = diff_iterator_get_first(manager->difflistB);
+    if (it) {
+	long lineNr = diff_get_line_nr(it);
+	while (lineNr <= maxLineNr) {
+	    diff_remove_line(manager->difflistB,lineNr);
+	    it = diff_iterator_get_first(manager->difflistB);
+	    if (!it)
+		break;
+	    lineNr = diff_get_line_nr(it);
+	}
+    }
+
 }
 
 long diffmanager_get_max_common_input_line(struct diffmanager_s *manager) {
