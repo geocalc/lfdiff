@@ -765,6 +765,7 @@ diffmanager_suite (void)
   tcase_add_test (tc_diffmanager, test_diffmanager_print_diff_4);
   tcase_add_test (tc_diffmanager, test_diffmanager_remove_common_1);
   tcase_add_test (tc_diffmanager, test_diffmanager_remove_common_2);
+  tcase_add_test (tc_diffmanager, test_diffmanager_remove_common_3);
   suite_add_tcase (s, tc_diffmanager);
 
   return s;
