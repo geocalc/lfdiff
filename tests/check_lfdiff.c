@@ -507,6 +507,207 @@ START_TEST (test_diffmanager_print_diff_1)
 }
 END_TEST
 
+START_TEST (test_diffmanager_print_diff_2)
+{
+    /* FROM
+     * "A\n
+     * \n"
+     * to
+     * "\n
+     * B\n"
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "1d0\n";
+    static const char diffA_1[] = "< A\n";
+    static const char diffH_2[] = "2a2\n";
+    static const char diffB_2[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_2, 2);
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffA_1);
+    strmcat(&stcmp, &len, diffH_2);
+    strmcat(&stcmp, &len, diffB_2);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_print_diff_3)
+{
+    /* FROM
+     * "A\n
+     * \n"
+     * to
+     * "\n
+     * \n"
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "1d0\n";
+    static const char diffA_1[] = "< A\n";
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffA_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_print_diff_4)
+{
+    /* FROM
+     * "\n
+     * \n"
+     * to
+     * "A\n
+     * \n"
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "0a1\n";
+    static const char diffB_1[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffB_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_remove_common_1)
+{
+    static const char diffH_1[] = "1c1\n";
+    static const char diffD[] = "---\n";
+    static const char diffA_1[] = "< A\n";
+    static const char diffB_1[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    diffmanager_remove_common_lines(diffmanager, 0);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffA_1);
+    strmcat(&stcmp, &len, diffD);
+    strmcat(&stcmp, &len, diffB_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_remove_common_2)
+{
+    static const char diffH_1[] = "1c1\n";
+    static const char diffD[] = "---\n";
+    static const char diffA_1[] = "< A\n";
+    static const char diffB_1[] = "> A\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    diffmanager_remove_common_lines(diffmanager, 0);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    ck_assert_str_eq(ptr, "");
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_remove_common_3)
+{
+    /* FROM
+     * "A\n
+     * \n"
+     * to
+     * "\n
+     * B\n"
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "1d0\n";
+    static const char diffA_1[] = "< A\n";
+    static const char diffH_2[] = "2a2\n";
+    static const char diffB_2[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_2, 2);
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    diffmanager_remove_common_lines(diffmanager, 0);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffA_1);
+    strmcat(&stcmp, &len, diffH_2);
+    strmcat(&stcmp, &len, diffB_2);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
 
 /* --- Test framework --- */
 
@@ -559,6 +760,11 @@ diffmanager_suite (void)
   tcase_add_test (tc_diffmanager, test_diffmanager_input_diffB);
   tcase_add_test (tc_diffmanager, test_diffmanager_input_diffAB);
   tcase_add_test (tc_diffmanager, test_diffmanager_print_diff_1);
+  tcase_add_test (tc_diffmanager, test_diffmanager_print_diff_2);
+  tcase_add_test (tc_diffmanager, test_diffmanager_print_diff_3);
+  tcase_add_test (tc_diffmanager, test_diffmanager_print_diff_4);
+  tcase_add_test (tc_diffmanager, test_diffmanager_remove_common_1);
+  tcase_add_test (tc_diffmanager, test_diffmanager_remove_common_2);
   suite_add_tcase (s, tc_diffmanager);
 
   return s;
