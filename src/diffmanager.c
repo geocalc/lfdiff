@@ -121,11 +121,7 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 
     // get maximal line A and B
     itA = diff_iterator_get_last(manager->difflistA);
-    if (!itA)
-	return;	// no data stored for file A? we can leave here
     itB = diff_iterator_get_last(manager->difflistB);
-    if (!itB)
-	return;	// no data stored for file B? we can leave here
 
     const long maxLineNrA = itA? diff_get_line_nr(itA): 0;
     const long maxLineNrB = itB? diff_get_line_nr(itB): 0;
@@ -134,11 +130,13 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
     itA = diff_iterator_get_current(manager->difflistA);
     if (!itA)
 	itA = diff_iterator_get_first(manager->difflistA);
-    diff_iterator_go_equal_after_line(&itA, manager->outputLineNrA);
+    if (itA)
+	diff_iterator_go_equal_after_line(&itA, manager->outputLineNrA);
     itB = diff_iterator_get_current(manager->difflistB);
     if (!itB)
 	itB = diff_iterator_get_first(manager->difflistB);
-    diff_iterator_go_equal_after_line(&itB, manager->outputLineNrB);
+    if (itB)
+	diff_iterator_go_equal_after_line(&itB, manager->outputLineNrB);
     // itA und itB stehen jetzt auf oder hinter der Zeilennummber von outputLineNr
 
     // beide Variablen gleichauf ziehen und Zeilen evaluieren.
