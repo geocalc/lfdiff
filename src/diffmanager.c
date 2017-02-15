@@ -117,7 +117,6 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
      *
      *
      */
-    long lineNrA = 1, lineNrB = 1;
     struct diff_iterator *itA, *itB;
 
     // get maximal line A and B
@@ -128,34 +127,65 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
     if (!itB)
 	return;	// no data stored for file B? we can leave here
 
-    const long maxLineNrA = diff_get_line_nr(itA);
-    const long maxLineNrB = diff_get_line_nr(itB);
+    const long maxLineNrA = itA? diff_get_line_nr(itA): 0;
+    const long maxLineNrB = itB? diff_get_line_nr(itB): 0;
 
-    // get minimal line A and B
-    itA = diff_iterator_get_first(manager->difflistA);
+
+    itA = diff_iterator_get_current(manager->difflistA);
     if (!itA)
-	return;	// no data stored for file A? we can leave here
-    itB = diff_iterator_get_first(manager->difflistB);
+	itA = diff_iterator_get_first(manager->difflistA);
+    diff_iterator_go_equal_after_line(&itA, manager->outputLineNrA);
+    itB = diff_iterator_get_current(manager->difflistB);
     if (!itB)
-	return;	// no data stored for file B? we can leave here
-    lineNrA = diff_get_line_nr(itA);
-    lineNrB = diff_get_line_nr(itB);
-    if (lineNrA < lineNrB)
-	lineNrB = lineNrA;
-    else
-	lineNrA = lineNrB;
+	itB = diff_iterator_get_first(manager->difflistB);
+    diff_iterator_go_equal_after_line(&itB, manager->outputLineNrB);
+    // itA und itB stehen jetzt auf oder hinter der Zeilennummber von outputLineNr
 
-    while (((lineNrA <= maxLineNrA) || (lineNrB <= maxLineNrB))) {
+    // beide Variablen gleichauf ziehen und Zeilen evaluieren.
+
+
+    while (((manager->outputLineNrA <= maxLineNrA) || (manager->outputLineNrB <= maxLineNrB))
+	    && (!maxLineNr || MIN(manager->outputLineNrA,manager->outputLineNrB) < maxLineNr)) {
+
+	// find the next line with content
+	{
+	    // calculate the offset to the next block of lines
+	    long minimalLineNrOffsetToNextBlock = 0;
+	    if (itA && itB) {
+		const long nextlineA = diff_get_line_nr(itA);
+		const long nextlineB = diff_get_line_nr(itB);
+		const long difflineA = nextlineA - manager->outputLineNrA;
+		const long difflineB = nextlineB - manager->outputLineNrB;
+		minimalLineNrOffsetToNextBlock = MIN(difflineA,difflineB);
+	    }
+	    else if (itA) {
+		// iterator B at end
+		const long nextlineA = diff_get_line_nr(itA);
+		const long difflineA = nextlineA - manager->outputLineNrA;
+		minimalLineNrOffsetToNextBlock = difflineA;
+	    }
+	    else if (itB) {
+		// iterator A at end
+		const long nextlineB = diff_get_line_nr(itB);
+		const long difflineB = nextlineB - manager->outputLineNrB;
+		minimalLineNrOffsetToNextBlock = difflineB;
+	    }
+	    else {
+		// both iterators at the end
+		// exit from while() loop
+		break;
+	    }
+	    manager->outputLineNrA += minimalLineNrOffsetToNextBlock;
+	    manager->outputLineNrB += minimalLineNrOffsetToNextBlock;
+	}
 
 	const long iterLineNrA = itA? diff_get_line_nr(itA): 0;
 	const long iterLineNrB = itB? diff_get_line_nr(itB): 0;
-	const long diffAB = lineNrB - lineNrA;
+	const long diffAB = manager->outputLineNrB - manager->outputLineNrA;
 	const long virtualLineNrA = iterLineNrA + diffAB;
 
 	const char *lineA = itA? diff_get_line(itA): NULL;
 	const char *lineB = itB? diff_get_line(itB): NULL;
-
-
 
 	if (itA && itB && virtualLineNrA == iterLineNrB) {
 	    // line changed from A to B
@@ -164,10 +194,10 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	    // should be removed if list has been optimized before
 	    if (strcmp(lineA, lineB)) {
 
-		long diffstartA = lineNrA;
-		long diffstartB = lineNrB;
-		long diffendA = lineNrA;
-		long diffendB = lineNrB;
+		long diffstartA = manager->outputLineNrA;
+		long diffstartB = manager->outputLineNrB;
+		long diffendA = manager->outputLineNrA;
+		long diffendB = manager->outputLineNrB;
 
 		diff_iterator_next(&itA);
 		while (itA && diff_get_line_nr(itA) == diffendA+1) {
@@ -189,14 +219,14 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 		else
 		    fprintf(output, "c%ld\n", diffstartB);
 
-		for (lineNrA=diffstartA; lineNrA<=diffendA; lineNrA++) {
-		    itA = diff_iterator_get_line(manager->difflistA, lineNrA);
+		for (manager->outputLineNrA=diffstartA; manager->outputLineNrA<=diffendA; manager->outputLineNrA++) {
+		    itA = diff_iterator_get_line(manager->difflistA, manager->outputLineNrA);
 		    lineA = diff_get_line(itA);
 		    fprintf(output, "< %s", lineA);
 		}
 		fprintf(output, "---\n");
-		for (lineNrB=diffstartB; lineNrB<=diffendB; lineNrB++) {
-		    itB = diff_iterator_get_line(manager->difflistB, lineNrB);
+		for (manager->outputLineNrB=diffstartB; manager->outputLineNrB<=diffendB; manager->outputLineNrB++) {
+		    itB = diff_iterator_get_line(manager->difflistB, manager->outputLineNrB);
 		    lineB = diff_get_line(itB);
 		    fprintf(output, "> %s", lineB);
 		}
@@ -206,14 +236,14 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	    diff_iterator_next(&itA);
 	    diff_iterator_next(&itB);
 	    // correct lineNrA + B calculation
-	    lineNrA--;
-	    lineNrB--;
+	    manager->outputLineNrA--;
+	    manager->outputLineNrB--;
 	}
 	else if ((itA && !itB) || (itA && itB && virtualLineNrA < iterLineNrB)) {
 	    // line deleted from A to B
 
-	    long diffstart = lineNrA;
-	    long diffend = lineNrA;
+	    long diffstart = manager->outputLineNrA;
+	    long diffend = manager->outputLineNrA;
 	    struct diff_iterator *itLine = itA;
 	    diff_iterator_next(&itLine);
 	    while (itLine && diff_get_line_nr(itLine) == diffend+1) {
@@ -222,16 +252,16 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	    }
 
 	    // correct lineNrB calculation
-	    lineNrB--;
+	    manager->outputLineNrB--;
 
 	    // now we have start line number and end line number
 	    // printout the diff lines
 	    if (diffstart != diffend)
-		fprintf(output, "%ld,%ldd%ld\n", diffstart, diffend, lineNrB);
+		fprintf(output, "%ld,%ldd%ld\n", diffstart, diffend, manager->outputLineNrB);
 	    else
-		fprintf(output, "%ldd%ld\n", diffstart, lineNrB);
+		fprintf(output, "%ldd%ld\n", diffstart, manager->outputLineNrB);
 
-	    for (lineNrA=diffstart; lineNrA<=diffend; lineNrA++) {
+	    for (manager->outputLineNrA=diffstart; manager->outputLineNrA<=diffend; manager->outputLineNrA++) {
 //		itA = diff_iterator_get_line(manager->difflistA, lineNrA);
 		lineA = diff_get_line(itA);
 		fprintf(output, "< %s", lineA);
@@ -241,13 +271,13 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	    // advance A to the next line block
 //	    diff_iterator_next(&itA);
 	    // correct lineNrA calculation
-//	    lineNrA--;
+	    manager->outputLineNrA--;
 	}
-	else if ((itB && !itA) || (itA && itB && virtualLineNrA > iterLineNrB)) {
+	else if ((!itA && itB) || (itA && itB && virtualLineNrA > iterLineNrB)) {
 	    // line added from A to B
 
-	    long diffstart = lineNrB;
-	    long diffend = lineNrB;
+	    long diffstart = manager->outputLineNrB;
+	    long diffend = manager->outputLineNrB;
 	    diff_iterator_next(&itB);
 	    while (itB && diff_get_line_nr(itB) == diffend+1) {
 		diffend = diff_get_line_nr(itB);
@@ -261,17 +291,17 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 //	    diffend--;
 
 	    // correct lineNrA calculation
-	    lineNrA--;
+	    manager->outputLineNrA--;
 
 	    // now we have start line number and end line number
 	    // printout the diff lines
 	    if (diffstart != diffend)
-		fprintf(output, "%lda%ld,%ld\n", lineNrA, diffstart, diffend);
+		fprintf(output, "%lda%ld,%ld\n", manager->outputLineNrA, diffstart, diffend);
 	    else
-		fprintf(output, "%lda%ld\n", lineNrA, diffstart);
+		fprintf(output, "%lda%ld\n", manager->outputLineNrA, diffstart);
 
-	    for (lineNrB=diffstart; lineNrB<=diffend; lineNrB++) {
-		itB = diff_iterator_get_line(manager->difflistB, lineNrB);
+	    for (manager->outputLineNrB=diffstart; manager->outputLineNrB<=diffend; manager->outputLineNrB++) {
+		itB = diff_iterator_get_line(manager->difflistB, manager->outputLineNrB);
 		lineB = diff_get_line(itB);
 		fprintf(output, "> %s", lineB);
 	    }
@@ -279,44 +309,15 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	    // advance B to the next line block
 	    diff_iterator_next(&itB);
 	    // correct lineNrB calculation
-	    lineNrB--;
+	    manager->outputLineNrB--;
 	}
 	else {
 	    // both lines same
 	}
 
-	// find the next line with content
-	lineNrA++;
-	lineNrB++;
+	manager->outputLineNrA++;
+	manager->outputLineNrB++;
 
-	// calculate the offset to the next block of lines
-	long minimalLineNrOffsetToNextBlock = 0;
-	if (itA && itB) {
-	    const long nextlineA = diff_get_line_nr(itA);
-	    const long nextlineB = diff_get_line_nr(itB);
-	    const long difflineA = nextlineA - lineNrA;
-	    const long difflineB = nextlineB - lineNrB;
-	    minimalLineNrOffsetToNextBlock = MIN(difflineA,difflineB);
-	}
-	else if (itA) {
-	    // iterator B at end
-	    const long nextlineA = diff_get_line_nr(itA);
-	    const long difflineA = nextlineA - lineNrA;
-	    minimalLineNrOffsetToNextBlock = difflineA;
-	}
-	else if (itB) {
-	    // iterator A at end
-	    const long nextlineB = diff_get_line_nr(itB);
-	    const long difflineB = nextlineB - lineNrB;
-	    minimalLineNrOffsetToNextBlock = difflineB;
-	}
-	else {
-	    // both iterators at the end
-	    // exit from while() loop
-	    break;
-	}
-	lineNrA += minimalLineNrOffsetToNextBlock;
-	lineNrB += minimalLineNrOffsetToNextBlock;
     }
 }
 

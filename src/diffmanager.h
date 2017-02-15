@@ -40,8 +40,8 @@ struct diffmanager_s {
     struct diff_list_s *difflistB;
     long maxlineA;
     long maxlineB;
-    long lastOutputA;
-    long lastOutputB;
+    long outputLineNrA;
+    long outputLineNrB;
 };
 
 
