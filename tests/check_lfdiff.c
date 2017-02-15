@@ -10,6 +10,7 @@
 #include <check.h>
 
 #include "../src/difflist.h"
+#include "../src/diffmanager.h"
 
 /*
  * NOTE: use "CK_FORK=no gdb check_lfdiff" to debug this
@@ -56,6 +57,23 @@ teardown_difflist (void)
 {
     // this is executeed after each unit test
     diff_delete(difflist);
+}
+
+
+struct diffmanager_s *diffmanager = NULL;
+
+void
+setup_diffmanager (void)
+{
+    // this is executeed before each unit test
+    diffmanager = diffmanager_new();
+}
+
+void
+teardown_diffmanager (void)
+{
+    // this is executeed after each unit test
+    diffmanager_delete(diffmanager);
 }
 
 
@@ -106,6 +124,7 @@ START_TEST (test_difflist_create)
 {
     ck_assert_msg(difflist != NULL,
 	    "diff list new() failed");
+    ck_assert(NULL == difflist->tqh_current);
 }
 END_TEST
 
@@ -385,6 +404,110 @@ END_TEST
 
 
 
+START_TEST (test_diffmanager_create)
+{
+    ck_assert(diffmanager != NULL);
+    ck_assert(diffmanager->difflistA != NULL);
+    ck_assert(diffmanager->difflistB != NULL);
+}
+END_TEST
+
+START_TEST (test_diffmanager_input_diffA)
+{
+    static const char diffA_1[] = "< \n";
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    struct diff_iterator *it = diff_iterator_get_current(diffmanager->difflistA);
+    ck_assert(it != NULL);
+
+    const char *line = diff_get_line(it);
+    ck_assert_str_eq(line, "\n");
+
+    long nr = diff_get_line_nr(it);
+    ck_assert_int_eq(nr, 1);
+
+    it = diff_iterator_get_current(diffmanager->difflistB);
+    ck_assert(it == NULL);
+}
+END_TEST
+
+START_TEST (test_diffmanager_input_diffB)
+{
+    static const char diffB_1[] = "> \n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+
+    struct diff_iterator *it = diff_iterator_get_current(diffmanager->difflistB);
+    ck_assert(it != NULL);
+
+    const char *line = diff_get_line(it);
+    ck_assert_str_eq(line, "\n");
+
+    long nr = diff_get_line_nr(it);
+    ck_assert_int_eq(nr, 1);
+
+    it = diff_iterator_get_current(diffmanager->difflistA);
+    ck_assert(it == NULL);
+}
+END_TEST
+
+START_TEST (test_diffmanager_input_diffAB)
+{
+    static const char diffA_1[] = "< \n";
+    static const char diffB_1[] = "> \n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    struct diff_iterator *it = diff_iterator_get_current(diffmanager->difflistA);
+    ck_assert(it != NULL);
+
+    const char *line = diff_get_line(it);
+    ck_assert_str_eq(line, "\n");
+
+    long nr = diff_get_line_nr(it);
+    ck_assert_int_eq(nr, 1);
+
+    it = diff_iterator_get_current(diffmanager->difflistB);
+    ck_assert(it != NULL);
+
+    line = diff_get_line(it);
+    ck_assert_str_eq(line, "\n");
+
+    nr = diff_get_line_nr(it);
+    ck_assert_int_eq(nr, 1);
+}
+END_TEST
+
+START_TEST (test_diffmanager_print_diff_1)
+{
+    static const char diffH_1[] = "1c1\n";
+    static const char diffD[] = "---\n";
+    static const char diffA_1[] = "< A\n";
+    static const char diffB_1[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+    diffmanager_input_diff(diffmanager, diffA_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffA_1);
+    strmcat(&stcmp, &len, diffD);
+    strmcat(&stcmp, &len, diffB_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+
 /* --- Test framework --- */
 
 Suite *
@@ -423,6 +546,24 @@ difflist_suite (void)
   return s;
 }
 
+Suite *
+diffmanager_suite (void)
+{
+  Suite *s = suite_create ("Diff Manager");
+
+  /* Core test case */
+  TCase *tc_diffmanager = tcase_create ("Core");
+  tcase_add_checked_fixture (tc_diffmanager, setup_diffmanager, teardown_diffmanager);
+  tcase_add_test (tc_diffmanager, test_diffmanager_create);
+  tcase_add_test (tc_diffmanager, test_diffmanager_input_diffA);
+  tcase_add_test (tc_diffmanager, test_diffmanager_input_diffB);
+  tcase_add_test (tc_diffmanager, test_diffmanager_input_diffAB);
+  tcase_add_test (tc_diffmanager, test_diffmanager_print_diff_1);
+  suite_add_tcase (s, tc_diffmanager);
+
+  return s;
+}
+
 /*
  * NOTE: use "CK_FORK=no gdb check_lfdiff" to debug this
  */
@@ -432,8 +573,10 @@ int main(void)
     int number_failed;
     Suite *st = support_test_suite();
     Suite *sl = difflist_suite ();
+    Suite *sm = diffmanager_suite();
     SRunner *sr = srunner_create (st);
     srunner_add_suite(sr, sl);
+    srunner_add_suite(sr, sm);
     srunner_run_all (sr, CK_VERBOSE);
     number_failed = srunner_ntests_failed (sr);
     srunner_free (sr);
