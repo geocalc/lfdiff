@@ -88,12 +88,19 @@ void diffmanager_input_diff(struct diffmanager_s *manager, const char *line, lon
 
 
 void diffmanager_output_diff(struct diffmanager_s *manager, FILE *output, long maxLineNr) {
+    // remove doublettes before pushing them out
+    diffmanager_remove_common_lines(manager, maxLineNr);
+
+    diffmanager_print_diff_to_stream(manager, output, maxLineNr);
+
+    // delete all lines up to this point
+//    diffmanager_delete_diff(manager, maxLineNr);
+}
+
+void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *output, long maxLineNr) {
     assert(manager);
     assert(output);
     assert(maxLineNr>=0);
-
-    // remove doublettes before pushing them out
-    diffmanager_remove_common_lines(manager, maxLineNr);
 
     /* Algorithm:
      * 0) start the current line numbers A and B with 0
