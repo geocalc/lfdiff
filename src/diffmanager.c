@@ -199,10 +199,6 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	if (itA && itB && virtualLineNrA == iterLineNrB) {
 	    // line changed from A to B
 
-	    // additional check if both lines are equal
-	    // should be removed if list has been optimized before
-	    if (strcmp(lineA, lineB)) {
-
 		long diffstartA = manager->outputLineNrA;
 		long diffstartB = manager->outputLineNrB;
 		long diffendA = manager->outputLineNrA;
@@ -239,7 +235,6 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 		    lineB = diff_get_line(itB);
 		    fprintf(output, "> %s", lineB);
 		}
-	    }
 
 	    // advance both to the next line block
 	    diff_iterator_next(&itA);
