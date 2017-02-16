@@ -77,6 +77,12 @@ void diffmanager_delete_diff(struct diffmanager_s *manager, long maxLineNr);
 
 long diffmanager_get_max_common_input_line(struct diffmanager_s *manager);
 
+/** get the difference of line numbers which point to the same
+ * data in file A and B
+ * @return: line difference
+ */
+long diffmanager_get_linediff_A_B(struct diffmanager_s *manager);
+
 void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLineNr);
 
 void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *output, long maxLineNr);

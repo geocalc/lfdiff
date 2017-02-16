@@ -356,6 +356,12 @@ long diffmanager_get_max_common_input_line(struct diffmanager_s *manager) {
     return MIN(manager->maxlineA, manager->maxlineB);
 }
 
+long diffmanager_get_linediff_A_B(struct diffmanager_s *manager) {
+    assert(manager);
+
+    return manager->outputLineNrB - manager->outputLineNrA;
+}
+
 void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLineNr) {
     assert(manager);
     assert(maxLineNr>=0);
