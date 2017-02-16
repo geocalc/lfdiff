@@ -199,42 +199,42 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	if (itA && itB && virtualLineNrA == iterLineNrB) {
 	    // line changed from A to B
 
-		long diffstartA = manager->outputLineNrA;
-		long diffstartB = manager->outputLineNrB;
-		long diffendA = manager->outputLineNrA;
-		long diffendB = manager->outputLineNrB;
+	    long diffstartA = manager->outputLineNrA;
+	    long diffstartB = manager->outputLineNrB;
+	    long diffendA = manager->outputLineNrA;
+	    long diffendB = manager->outputLineNrB;
 
+	    diff_iterator_next(&itA);
+	    while (itA && diff_get_line_nr(itA) == diffendA+1) {
+		diffendA = diff_get_line_nr(itA);
 		diff_iterator_next(&itA);
-		while (itA && diff_get_line_nr(itA) == diffendA+1) {
-		    diffendA = diff_get_line_nr(itA);
-		    diff_iterator_next(&itA);
-		}
+	    }
+	    diff_iterator_next(&itB);
+	    while (itB && diff_get_line_nr(itB) == diffendB+1) {
+		diffendB = diff_get_line_nr(itB);
 		diff_iterator_next(&itB);
-		while (itB && diff_get_line_nr(itB) == diffendB+1) {
-		    diffendB = diff_get_line_nr(itB);
-		    diff_iterator_next(&itB);
-		}
+	    }
 
-		if (diffstartA != diffendA)
-		    fprintf(output, "%ld,%ld", diffstartA, diffendA);
-		else
-		    fprintf(output, "%ld", diffstartA);
-		if (diffstartB != diffendB)
-		    fprintf(output, "c%ld,%ld\n", diffstartB, diffendB);
-		else
-		    fprintf(output, "c%ld\n", diffstartB);
+	    if (diffstartA != diffendA)
+		fprintf(output, "%ld,%ld", diffstartA, diffendA);
+	    else
+		fprintf(output, "%ld", diffstartA);
+	    if (diffstartB != diffendB)
+		fprintf(output, "c%ld,%ld\n", diffstartB, diffendB);
+	    else
+		fprintf(output, "c%ld\n", diffstartB);
 
-		for (manager->outputLineNrA=diffstartA; manager->outputLineNrA<=diffendA; manager->outputLineNrA++) {
-		    itA = diff_iterator_get_line(manager->difflistA, manager->outputLineNrA);
-		    lineA = diff_get_line(itA);
-		    fprintf(output, "< %s", lineA);
-		}
-		fprintf(output, "---\n");
-		for (manager->outputLineNrB=diffstartB; manager->outputLineNrB<=diffendB; manager->outputLineNrB++) {
-		    itB = diff_iterator_get_line(manager->difflistB, manager->outputLineNrB);
-		    lineB = diff_get_line(itB);
-		    fprintf(output, "> %s", lineB);
-		}
+	    for (manager->outputLineNrA=diffstartA; manager->outputLineNrA<=diffendA; manager->outputLineNrA++) {
+		itA = diff_iterator_get_line(manager->difflistA, manager->outputLineNrA);
+		lineA = diff_get_line(itA);
+		fprintf(output, "< %s", lineA);
+	    }
+	    fprintf(output, "---\n");
+	    for (manager->outputLineNrB=diffstartB; manager->outputLineNrB<=diffendB; manager->outputLineNrB++) {
+		itB = diff_iterator_get_line(manager->difflistB, manager->outputLineNrB);
+		lineB = diff_get_line(itB);
+		fprintf(output, "> %s", lineB);
+	    }
 
 	    // advance both to the next line block
 	    diff_iterator_next(&itA);
