@@ -94,7 +94,7 @@ void diffmanager_output_diff(struct diffmanager_s *manager, FILE *output, long m
     diffmanager_print_diff_to_stream(manager, output, maxLineNr);
 
     // delete all lines up to this point
-//    diffmanager_delete_diff(manager, maxLineNr);
+    diffmanager_delete_diff(manager, maxLineNr);
 }
 
 void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *output, long maxLineNr) {
