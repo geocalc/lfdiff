@@ -415,6 +415,13 @@ int main(int argc, char **argv) {
 
 		runtime.currentlineFileA = linesA + runtime.lineOffsetFileA;
 		runtime.currentlineFileB = linesB + runtime.lineOffsetFileB;
+
+		// write out decoded and optimized differentials to "outfile"
+		// to save some memory
+		const long diffAB = diffmanager_get_linediff_A_B(runtime.diffmanager);
+		long min_common_lines = MIN(runtime.currentlineFileA,runtime.currentlineFileB-diffAB)-1;
+		PRINT_VERBOSE(stderr, "diff output <= line %ld\n", min_common_lines);
+		diffmanager_output_diff(runtime.diffmanager, outfile, min_common_lines);
 	    }
 	    else if( retval == REG_NOMATCH )
 	    {
