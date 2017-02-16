@@ -1,0 +1,22 @@
+1) handle input from stdin
+
+on the command line set input file = '-' as standard input channel.
+Then get the average line count of the second file 
+( = spliz size * (line cnt / file size) ). Now cut of average count line numbers
+from stdin and feed to the external diff program on its stdin channel along 
+with the split chunk from the second file.
+
+We need a shell call with stdin and stdout connected to the lfdiff program.
+
+
+2) handle missing newline at the end of file
+
+if a new line is missing on one of the files diff prints an additional message
+at the end of the stream "\ No newline at end of file".
+This line has to be recognized by the parser and handled differently from the
+ordinary lines.
+Maybe cutting the newline of the line in the diff container? then recognize this
+during the print output?
+
+the test code is already available in the tests directory
+
