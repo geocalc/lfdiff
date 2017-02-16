@@ -42,6 +42,8 @@ struct diffmanager_s {
     long maxlineB;
     long outputLineNrA;
     long outputLineNrB;
+    long removeLineNrA;
+    long removeLineNrB;
 };
 
 

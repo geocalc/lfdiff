@@ -379,14 +379,13 @@ void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLine
     const long maxLineNrA = diff_get_line_nr(itA);
     const long maxLineNrB = diff_get_line_nr(itB);
 
-    long lineNrA = 1, lineNrB = 1;
 
-    while (lineNrA <= maxLineNrA
-	    && lineNrB <= maxLineNrB
-	    && (!maxLineNr || MAX(lineNrA,lineNrB) <= maxLineNr)
+    while (manager->removeLineNrA <= maxLineNrA
+	    && manager->removeLineNrB <= maxLineNrB
+	    && (!maxLineNr || MAX(manager->removeLineNrA,manager->removeLineNrB) <= maxLineNr)
 	   ) {
-	itA = diff_iterator_get_line(manager->difflistA, lineNrA);
-	itB = diff_iterator_get_line(manager->difflistB, lineNrB);
+	itA = diff_iterator_get_line(manager->difflistA, manager->removeLineNrA);
+	itB = diff_iterator_get_line(manager->difflistB, manager->removeLineNrB);
 
 	if (itA && itB) {
 	    // both lines defined, maybe the same
@@ -395,26 +394,26 @@ void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLine
 	    if (!strcmp(lineA, lineB)) {
 		// lines are same
 		// remove them
-		diff_remove_line(manager->difflistA, lineNrA);
-		diff_remove_line(manager->difflistB, lineNrB);
+		diff_remove_line(manager->difflistA, manager->removeLineNrA);
+		diff_remove_line(manager->difflistB, manager->removeLineNrB);
 	    }
-	    lineNrA++;
-	    lineNrB++;
+	    manager->removeLineNrA++;
+	    manager->removeLineNrB++;
 	}
 	else if (itA) {
 	    // file A defined, file B not. This line gets removed from file A.
 	    // try to find common lines again.
-	    lineNrA++;
+	    manager->removeLineNrA++;
 	}
 	else if (itB) {
 	    // file B defined, file A not. This line gets removed from file B.
 	    // try to find common lines again.
-	    lineNrB++;
+	    manager->removeLineNrB++;
 	}
 	else {
 	    // both lines undefined (i.e. same)
-	    lineNrA++;
-	    lineNrB++;
+	    manager->removeLineNrA++;
+	    manager->removeLineNrB++;
 	}
 
     }
