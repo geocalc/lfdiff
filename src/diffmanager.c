@@ -146,6 +146,8 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 	    && (!maxLineNr || MIN(manager->outputLineNrA,manager->outputLineNrB) < maxLineNr)) {
 
 	// find the next line with content
+	const long diffAB = diffmanager_get_linediff_A_B(manager);
+
 	{
 	    // calculate the offset to the next block of lines
 	    long minimalLineNrOffsetToNextBlock = 0;
@@ -173,13 +175,22 @@ void diffmanager_print_diff_to_stream(struct diffmanager_s *manager, FILE *outpu
 		// exit from while() loop
 		break;
 	    }
+
+	    // exit from loop if the line numbers of the next available block
+	    // is larger than the maximum allowed line number to print.
+	    // do this before any data is changed which we access during the
+	    // next call to this function.
+	    const long nextLine = MIN(manager->outputLineNrA + minimalLineNrOffsetToNextBlock,
+		    manager->outputLineNrB + minimalLineNrOffsetToNextBlock - diffAB);
+	    if (maxLineNr && nextLine >= maxLineNr)
+		break;
+
 	    manager->outputLineNrA += minimalLineNrOffsetToNextBlock;
 	    manager->outputLineNrB += minimalLineNrOffsetToNextBlock;
 	}
 
 	const long iterLineNrA = itA? diff_get_line_nr(itA): 0;
 	const long iterLineNrB = itB? diff_get_line_nr(itB): 0;
-	const long diffAB = manager->outputLineNrB - manager->outputLineNrA;
 	const long virtualLineNrA = iterLineNrA + diffAB;
 
 	const char *lineA = itA? diff_get_line(itA): NULL;
