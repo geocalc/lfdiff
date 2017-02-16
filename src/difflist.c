@@ -47,8 +47,8 @@ void diff_delete(struct diff_list_s *list) {
 
     struct diff_iterator *entry;
     while ( NULL != (entry = TAILQ_FIRST(&list->head)) ) {
-	free(entry->line);
 	TAILQ_REMOVE(&list->head, entry, entries);
+	free(entry->line);
 	free(entry);
     }
 
@@ -120,6 +120,7 @@ void diff_remove_line(struct diff_list_s *list, long n) {
 
 	    TAILQ_REMOVE(&list->head, iterator, entries);
 
+	    free(iterator->line);
 	    free(iterator);
 	}
     }

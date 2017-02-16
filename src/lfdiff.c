@@ -247,6 +247,7 @@ int main(int argc, char **argv) {
 		free(buffer);
 		exit(EXIT_FAILURE);
 	    }
+	    regfree(&regex);
 	}
 	    break;
 	default: /* '?' */
@@ -475,6 +476,8 @@ int main(int argc, char **argv) {
 
     diffmanager_output_diff(runtime.diffmanager, outfile, 0);
 
+    // clean up
+    fclose(outfile);
     diffmanager_delete(runtime.diffmanager);
 
 //    retval = fseek(tempfile, 0, SEEK_SET);
