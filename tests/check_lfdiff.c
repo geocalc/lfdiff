@@ -611,6 +611,135 @@ START_TEST (test_diffmanager_print_diff_4)
 }
 END_TEST
 
+START_TEST (test_diffmanager_print_diff_5)
+{
+    /* From
+     * "A\n
+     * A2\n
+     * A3"
+     *
+     * to
+     * "A\n
+     * A2\n
+     * A3\n"
+     *
+     * result
+     * 3c3
+     * < A3
+     * \ No newline at end of file
+     * ---
+     * > A3
+     *
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "0a1\n";
+    static const char diffB_1[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffB_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_print_diff_6)
+{
+    /* From
+     * "A\n
+     * A2\n
+     * A3\n"
+     *
+     * to
+     * "A\n
+     * A2\n
+     * A3"
+     *
+     * result
+     * 3c3
+     * < A3
+     * ---
+     * > A3
+     * \ No newline at end of file
+     *
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "0a1\n";
+    static const char diffB_1[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffB_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
+START_TEST (test_diffmanager_print_diff_7)
+{
+    /* From
+     * "A\n
+     * A2\n
+     *
+     * to
+     * "A\n
+     * A2\n
+     * A3"
+     *
+     * result
+     * 3d2
+     * < A3
+     * \ No newline at end of file
+     *
+     */
+    static const char diffD[] = "---\n";
+    static const char diffH_1[] = "0a1\n";
+    static const char diffB_1[] = "> B\n";
+    diffmanager_input_diff(diffmanager, diffB_1, 1);
+
+    char *ptr;
+    size_t size;
+    FILE *f = open_memstream(&ptr, &size);
+    ck_assert(f != NULL);
+
+    diffmanager_print_diff_to_stream(diffmanager, f, 0);
+    fclose(f);
+
+    size_t len = 0;
+    char *stcmp = NULL;
+    strmcat(&stcmp, &len, diffH_1);
+    strmcat(&stcmp, &len, diffB_1);
+    ck_assert_str_eq(ptr, stcmp);
+    free(stcmp);
+
+    free(ptr);
+}
+END_TEST
+
 START_TEST (test_diffmanager_remove_common_1)
 {
     static const char diffH_1[] = "1c1\n";
