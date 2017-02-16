@@ -381,20 +381,15 @@ void diffmanager_remove_common_lines(struct diffmanager_s *manager, long maxLine
 
     // get maximal line A and B
     itA = diff_iterator_get_last(manager->difflistA);
-    if (!itA)
-	return;	// no data stored for file A? we can leave here
     itB = diff_iterator_get_last(manager->difflistB);
-    if (!itB)
-	return;	// no data stored for file B? we can leave here
 
-    const long maxLineNrA = diff_get_line_nr(itA);
-    const long maxLineNrB = diff_get_line_nr(itB);
+    const long maxLineNrA = itA? diff_get_line_nr(itA): 0;
+    const long maxLineNrB = itB? diff_get_line_nr(itB): 0;
 
 
-    while (manager->removeLineNrA <= maxLineNrA
-	    && manager->removeLineNrB <= maxLineNrB
-	    && (!maxLineNr || MAX(manager->removeLineNrA,manager->removeLineNrB) <= maxLineNr)
-	   ) {
+    while (((manager->removeLineNrA <= maxLineNrA) || (manager->removeLineNrB <= maxLineNrB))
+	    && (!maxLineNr || MIN(manager->removeLineNrA,manager->removeLineNrB) < maxLineNr)) {
+
 	itA = diff_iterator_get_line(manager->difflistA, manager->removeLineNrA);
 	itB = diff_iterator_get_line(manager->difflistB, manager->removeLineNrB);
 
