@@ -93,21 +93,11 @@ void diff_add_line(struct diff_list_s *list, long n, char *line) {
     list->tqh_current = knot;
 }
 
-//void diff_add_line_i(struct diff_iterator **iterator, long n, char *line) {
-//    assert(iterator);
-//    assert(*iterator);
-//
-//    while ((*iterator)->n < n) {
-//	diff_iterator_next(iterator);
-//    }
-//}
-
 void diff_remove_line(struct diff_list_s *list, long n) {
     assert(list);
 
     // remember to correct current_iterator
     struct diff_iterator *iterator;
-//    if (NULL != (iterator = TAILQ_FIRST(&list->head))) {
     if (NULL != (iterator = list->tqh_current)) {
 	diff_iterator_go_equal_after_line(&iterator, n);
 	if (iterator && iterator->n == n) {
@@ -125,12 +115,6 @@ void diff_remove_line(struct diff_list_s *list, long n) {
 	}
     }
 }
-
-//void diff_remove_line_i(struct diff_iterator **iterator, long n) {
-//    assert(iterator);
-//    assert(*iterator);
-//
-//}
 
 struct diff_iterator *diff_iterator_get_first(struct diff_list_s *list) {
     assert(list);
@@ -191,25 +175,6 @@ void diff_iterator_previous(struct diff_iterator **iterator) {
     *iterator = TAILQ_PREV(*iterator, listhead, entries);
 }
 
-//struct diff_iterator *diff_go_before_line(struct diff_list_s *list, long n) {
-//    assert(list);
-//    assert(n>0);
-//
-//	while (iterator && iterator->n < n) {
-//	    diff_iterator_next(&iterator);
-//	}
-//}
-//
-//struct diff_iterator *diff_go_after_line(struct diff_list_s *list, long n) {
-//    assert(list);
-//    assert(n>0);
-//
-//
-//    while (iterator && iterator->n < n) {
-//	diff_iterator_next(&iterator);
-//    }
-//}
-
 void diff_iterator_go_equal_before_line(struct diff_iterator **iterator, long n) {
     assert(iterator);
     assert(*iterator);
@@ -267,6 +232,7 @@ long diff_get_line_nr(struct diff_iterator *iterator) {
     return iterator->n;
 }
 
+/* print function for debugging purpose */
 void diff_print(struct diff_list_s *list) {
     assert(list);
 

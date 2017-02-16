@@ -37,7 +37,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-//#include <libgen.h>
 #include <strings.h>
 #include <errno.h>
 #include <string.h>
@@ -59,7 +58,6 @@
 
 
 static const long default_splitsize = 2l*1024*1024*1024; // 2GB
-//static const char *default_tmpdir = "/tmp";
 
 
 
@@ -72,7 +70,6 @@ const char *mybasename(const char *path) {
 struct config {
     long splitsize;
     int be_verbose;
-//    const char *tmpdir;
     const char *outfilename;
     const char *file1;
     const char *file2;
@@ -96,8 +93,7 @@ void usage(const char *argv0) {
 	    "\t-o: write output to OUTFILE instead of stdout\n"
 	    "\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: %ld byte)\n"
 	    "\t-v: be verbose\n"
-//	    "environment TMPDIR, TMP, TEMP: look in each variable (in this order) for a setting to store files (default: %s)\n"
-	    , mybasename(argv0), default_splitsize/*, default_tmpdir*/
+	    , mybasename(argv0), default_splitsize
     );
 
 }
@@ -270,19 +266,6 @@ int main(int argc, char **argv) {
     }
     config.file2 = argv[optind++];
 
-//    {
-//	const char *temp;
-//	if ((temp = getenv("TMPDIR"))) {
-//	}
-//	else if ((temp = getenv("TMP"))) {
-//	}
-//	else if ((temp = getenv("TEMP"))) {
-//	}
-//	else {
-//	    temp = default_tmpdir;
-//	}
-//	config.tmpdir = temp;
-//    }
 
     int i;
     {
@@ -308,7 +291,6 @@ int main(int argc, char **argv) {
 
     runtime.diffmanager = diffmanager_new();
 
-//    FILE *tempfile = tmpfile();
     char *line = NULL;	// buffer holding one line of diff
     size_t n = 0;	// size of the buffer
 
@@ -366,12 +348,9 @@ int main(int argc, char **argv) {
 	    break;	// exit loop if both input files empty
 
 	// use bash for input pipe substitution
-//	char *line;
 	PRINT_VERBOSE(stderr, "diff input %d/%d\n", i, max_i);
 	splitinput = mypopen ("bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"", "r", i, max_i, config.file1, i, max_i, config.file2);
 	while (!feof(splitinput)) {
-//	    size_t n=0;
-//	    line = NULL;
 	    retval = getline(&line, &n, splitinput);
 	    if (1 > retval) {
 		if (errno) {
@@ -380,7 +359,6 @@ int main(int argc, char **argv) {
 		else if (feof(splitinput)) {
 		    // we have reached the end of input.
 		    // why didn't we notice earlier at the top of the loop?
-//		    free(line);
 		    break;
 		}
 		else {
@@ -388,16 +366,14 @@ int main(int argc, char **argv) {
 		}
 		exit(EXIT_FAILURE);
 	    }
-	    // line includes newline character at the end
-//	    fprintf(stdout, "%s", line);
+	    // note: line includes a newline character at the end
 
 	    regmatch_t matchptr[REGEX_MATCHBUFFER_LEN];
 	    retval = regexec(&regex, line, REGEX_MATCHBUFFER_LEN, matchptr, 0);
 	    if( !retval )
 	    {
 		// Match
-//		fprintf(stdout, "%s", line);
-		// TODO
+
 		static const int bufferlen = 32;
 		static const int actionlen = 2;
 		long linesA, linesB;
@@ -410,8 +386,6 @@ int main(int argc, char **argv) {
 		myregexbuffercpy(buffer, line, matchptr[4].rm_so, matchptr[4].rm_eo, bufferlen);
 		linesB = atol(buffer);
 		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, actionlen);
-
-//		fprintf(stdout, "found match % 4d to % 4d, %s\n", linesA, linesB, action);
 
 		runtime.currentlineFileA = linesA + runtime.lineOffsetFileA;
 		runtime.currentlineFileB = linesB + runtime.lineOffsetFileB;
@@ -467,7 +441,6 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	    }
 
-//	    free(line);
 	}
 	pclose(splitinput);
 
@@ -478,33 +451,12 @@ int main(int argc, char **argv) {
     regfree(&regex);
 
     // printout diff
-    runtime.currentlineFileA =
-	    runtime.currentlineFileB = 0;
-
     diffmanager_output_diff(runtime.diffmanager, outfile, 0);
 
     // clean up
     fclose(outfile);
     diffmanager_delete(runtime.diffmanager);
 
-//    retval = fseek(tempfile, 0, SEEK_SET);
-//    size_t n = 0;
-//    char *line = NULL;
-//    while (!feof(tempfile)) {
-//	retval = getline(&line, &n, tempfile);
-//	if (1 > retval) {
-//	    if (errno) {
-//		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
-//	    }
-//	    else {
-//		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
-//	    }
-//	    exit(EXIT_FAILURE);
-//	}
-//	fprintf(stdout, "%s", line);
-//
-//
-//    }
 
     return 0;
 }
