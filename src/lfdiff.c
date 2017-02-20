@@ -232,6 +232,9 @@ int main(int argc, char **argv) {
 	    else if( retval == REG_NOMATCH )
 	    {
 		// No match on diff header
+		fprintf(stderr, "Invalid argument to option '-s': %s\n", optarg);
+		usage(argv[0]);
+		exit(EXIT_FAILURE);
 	    }
 	    else
 	    {
