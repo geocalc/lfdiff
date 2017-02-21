@@ -71,8 +71,8 @@ struct config {
     long splitsize;
     int be_verbose;
     const char *outfilename;
-    const char *file1;
-    const char *file2;
+    const char *filename1;
+    const char *filename2;
 } config = {0};
 
 
@@ -260,30 +260,30 @@ int main(int argc, char **argv) {
 	usage(argv[0]);
 	exit(EXIT_FAILURE);
     }
-    config.file1 = argv[optind++];
+    config.filename1 = argv[optind++];
 
     if (optind >= argc) {
 	fprintf(stderr, "INPUT2 missing\n");
 	usage(argv[0]);
 	exit(EXIT_FAILURE);
     }
-    config.file2 = argv[optind++];
+    config.filename2 = argv[optind++];
 
 
     int i;
     {
 	struct stat mystat;
-	int retval = stat(config.file1, &mystat);
+	int retval = stat(config.filename1, &mystat);
 	if (-1 == retval) {
-	    fprintf(stderr, "%s error: could not read from file '%s': %s\n", mybasename(argv[0]), config.file1, strerror(errno));
+	    fprintf(stderr, "%s error: could not read from file '%s': %s\n", mybasename(argv[0]), config.filename1, strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
 	off_t size = mystat.st_size;
 	i = size/config.splitsize;
 
-	retval = stat(config.file2, &mystat);
+	retval = stat(config.filename2, &mystat);
 	if (-1 == retval) {
-	    fprintf(stderr, "%s error: could not read from file '%s': %s\n", mybasename(argv[0]), config.file2, strerror(errno));
+	    fprintf(stderr, "%s error: could not read from file '%s': %s\n", mybasename(argv[0]), config.filename2, strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
 	size = mystat.st_size;
@@ -320,28 +320,28 @@ int main(int argc, char **argv) {
 	FILE *splitinput;
 
 	PRINT_VERBOSE(stderr, "split input1 %d/%d\n", i, max_i);
-	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.file1);
+	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.filename1);
 	retval = fscanf(splitinput, "%d\n", &linesSplit1);
 	if (1 > retval) {
 	    if (errno) {
-		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.filename1, strerror(errno));
 	    }
 	    else {
-		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.filename1, strerror(errno));
 	    }
 	    exit(EXIT_FAILURE);
 	}
 	pclose(splitinput);
 
 	PRINT_VERBOSE(stderr, "split input2 %d/%d\n", i, max_i);
-	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.file2);
+	splitinput = mypopen ("split -n l/%d/%d '%s' | wc -l", "r", i, max_i, config.filename2);
 	retval = fscanf(splitinput, "%d\n", &linesSplit2);
 	if (1 > retval) {
 	    if (errno) {
-		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+		fprintf(stderr, "%s error: reading from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.filename1, strerror(errno));
 	    }
 	    else {
-		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.file1, strerror(errno));
+		fprintf(stderr, "%s error: no valid input from 'split -n l/%d/%d '%s' | wc -l': %s\n", mybasename(argv[0]), i, max_i, config.filename1, strerror(errno));
 	    }
 	    exit(EXIT_FAILURE);
 	}
@@ -352,12 +352,12 @@ int main(int argc, char **argv) {
 
 	// use bash for input pipe substitution
 	PRINT_VERBOSE(stderr, "diff input %d/%d\n", i, max_i);
-	splitinput = mypopen ("bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"", "r", i, max_i, config.file1, i, max_i, config.file2);
+	splitinput = mypopen ("bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"", "r", i, max_i, config.filename1, i, max_i, config.filename2);
 	while (!feof(splitinput)) {
 	    retval = getline(&line, &n, splitinput);
 	    if (1 > retval) {
 		if (errno) {
-		    fprintf(stderr, "%s error: reading from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"': %s\n", mybasename(argv[0]), i, max_i, config.file1, i, max_i, config.file2, strerror(errno));
+		    fprintf(stderr, "%s error: reading from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"': %s\n", mybasename(argv[0]), i, max_i, config.filename1, i, max_i, config.filename2, strerror(errno));
 		}
 		else if (feof(splitinput)) {
 		    // we have reached the end of input.
@@ -365,7 +365,7 @@ int main(int argc, char **argv) {
 		    break;
 		}
 		else {
-		    fprintf(stderr, "%s error: no valid input from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"'\n", mybasename(argv[0]), i, max_i, config.file1, i, max_i, config.file2);
+		    fprintf(stderr, "%s error: no valid input from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"'\n", mybasename(argv[0]), i, max_i, config.filename1, i, max_i, config.filename2);
 		}
 		exit(EXIT_FAILURE);
 	    }
