@@ -393,12 +393,17 @@ int main(int argc, char **argv) {
 		runtime.currentlineFileA = linesA + runtime.lineOffsetFileA;
 		runtime.currentlineFileB = linesB + runtime.lineOffsetFileB;
 
-		// write out decoded and optimized differentials to "outfile"
-		// to save some memory
-		const long diffAB = diffmanager_get_linediff_A_B(runtime.diffmanager);
-		long min_common_lines = MIN(runtime.currentlineFileA,runtime.currentlineFileB-diffAB)-1;
-		PRINT_VERBOSE(stderr, "diff output <= line %ld\n", min_common_lines);
-		diffmanager_output_diff(runtime.diffmanager, outfile, min_common_lines);
+		// write out and free() decoded and optimized differentials to
+		// "outfile" to reduce the amount of memory used
+		// NOTE: currently disabled due to a bug in the diff stream generation
+//		const long diffAB = diffmanager_get_linediff_A_B(runtime.diffmanager);
+//		long min_common_lines = (
+//			diffAB>0?
+//			MIN(runtime.currentlineFileA,runtime.currentlineFileB-diffAB):
+//			MIN(runtime.currentlineFileA+diffAB,runtime.currentlineFileB)
+//			)-1;
+//		PRINT_VERBOSE(stderr, "diff output <= line %ld\n", min_common_lines);
+//		diffmanager_output_diff(runtime.diffmanager, outfile, min_common_lines);
 	    }
 	    else if( retval == REG_NOMATCH )
 	    {
