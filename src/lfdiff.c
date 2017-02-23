@@ -585,19 +585,19 @@ int main(int argc, char **argv) {
 
 		static const int bufferlen = 32;
 		static const int actionlen = 2;
-		long linesA, linesB;
+		long lines[MAX_FILE];
 		char buffer[bufferlen];
 		char action[actionlen];
 
 		// extract data
 		myregexbuffercpy(buffer, line, matchptr[1].rm_so, matchptr[1].rm_eo, bufferlen);
-		linesA = atol(buffer);
+		lines[FILE_A] = atol(buffer);
 		myregexbuffercpy(buffer, line, matchptr[4].rm_so, matchptr[4].rm_eo, bufferlen);
-		linesB = atol(buffer);
+		lines[FILE_B] = atol(buffer);
 		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, actionlen);
 
-		runtime.currentline[FILE_A] = linesA + runtime.lineOffset[FILE_A];
-		runtime.currentline[FILE_B] = linesB + runtime.lineOffset[FILE_B];
+		runtime.currentline[FILE_A] = lines[FILE_A] + runtime.lineOffset[FILE_A];
+		runtime.currentline[FILE_B] = lines[FILE_B] + runtime.lineOffset[FILE_B];
 
 		// write out and free() decoded and optimized differentials to
 		// "outfile" to reduce the amount of memory used
