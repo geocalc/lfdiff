@@ -92,10 +92,8 @@ struct thread_copy_buffer_args {
 struct runtime {
     FILE *infile[MAX_FILE];
     const char *argv0;
-    unsigned long currentlineFileA;
-    unsigned long currentlineFileB;
-    unsigned long lineOffsetFileA;
-    unsigned long lineOffsetFileB;
+    unsigned long currentline[MAX_FILE];
+    unsigned long lineOffset[MAX_FILE];
     struct diffmanager_s *diffmanager;
     pid_t pid;
     struct thread_copy_buffer_args threadbuffer[MAX_FILE];
@@ -553,10 +551,10 @@ int main(int argc, char **argv) {
 	    break;
 
 	memset(&runtime.threadbuffer, 0, sizeof(runtime.threadbuffer));
-	runtime.threadbuffer[0].infile = runtime.infile[FILE_A];
-	runtime.threadbuffer[0].max_copy_bytes = config.splitsize;
-	runtime.threadbuffer[1].infile = runtime.infile[FILE_B];
-	runtime.threadbuffer[1].max_copy_bytes = config.splitsize;
+	runtime.threadbuffer[FILE_A].infile = runtime.infile[FILE_A];
+	runtime.threadbuffer[FILE_A].max_copy_bytes = config.splitsize;
+	runtime.threadbuffer[FILE_B].infile = runtime.infile[FILE_B];
+	runtime.threadbuffer[FILE_B].max_copy_bytes = config.splitsize;
 
 	PRINT_VERBOSE(stderr, "diff input %d\n", i);
 	splitinput = diff_open();
@@ -597,8 +595,8 @@ int main(int argc, char **argv) {
 		linesB = atol(buffer);
 		myregexbuffercpy(action, line, matchptr[3].rm_so, matchptr[3].rm_eo, actionlen);
 
-		runtime.currentlineFileA = linesA + runtime.lineOffsetFileA;
-		runtime.currentlineFileB = linesB + runtime.lineOffsetFileB;
+		runtime.currentline[FILE_A] = linesA + runtime.lineOffset[FILE_A];
+		runtime.currentline[FILE_B] = linesB + runtime.lineOffset[FILE_B];
 
 		// write out and free() decoded and optimized differentials to
 		// "outfile" to reduce the amount of memory used
@@ -606,8 +604,8 @@ int main(int argc, char **argv) {
 //		const long diffAB = diffmanager_get_linediff_A_B(runtime.diffmanager);
 //		long min_common_lines = (
 //			diffAB>0?
-//			MIN(runtime.currentlineFileA,runtime.currentlineFileB-diffAB):
-//			MIN(runtime.currentlineFileA+diffAB,runtime.currentlineFileB)
+//			MIN(runtime.currentline[FILE_A],runtime.currentline[FILE_B]-diffAB):
+//			MIN(runtime.currentline[FILE_A]+diffAB,runtime.currentline[FILE_B])
 //			)-1;
 //		PRINT_VERBOSE(stderr, "diff output <= line %ld\n", min_common_lines);
 //		diffmanager_output_diff(runtime.diffmanager, outfile, min_common_lines);
@@ -620,11 +618,11 @@ int main(int argc, char **argv) {
 		if (2 <= strlen(line)) {
 		    switch (*line) {
 		    case '<':
-			diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileA++);
+			diffmanager_input_diff(runtime.diffmanager, line, runtime.currentline[FILE_A]++);
 			break;
 
 		    case '>':
-			diffmanager_input_diff(runtime.diffmanager, line, runtime.currentlineFileB++);
+			diffmanager_input_diff(runtime.diffmanager, line, runtime.currentline[FILE_B]++);
 			break;
 
 		    case '-':
@@ -658,8 +656,8 @@ int main(int argc, char **argv) {
 	}
 	diff_close(splitinput);
 
-	runtime.lineOffsetFileA += runtime.threadbuffer[0].lines_copied;
-	runtime.lineOffsetFileB += runtime.threadbuffer[1].lines_copied;
+	runtime.lineOffset[FILE_A] += runtime.threadbuffer[FILE_A].lines_copied;
+	runtime.lineOffset[FILE_B] += runtime.threadbuffer[FILE_B].lines_copied;
     }
     free(line);
     regfree(&regex);
