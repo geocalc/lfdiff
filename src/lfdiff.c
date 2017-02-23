@@ -269,6 +269,12 @@ int main(int argc, char **argv) {
     }
     config.filename2 = argv[optind++];
 
+    if (!strcmp(config.filename1, config.filename2)) {
+	// input is twice the same file name or twice stdin
+	fprintf(stderr, "no need to compare same files\n");
+	exit(EXIT_FAILURE);
+    }
+
 
     int i;
     {
