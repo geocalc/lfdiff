@@ -143,30 +143,6 @@ void myregexbuffercpy(char *dest, const char *src, int start, int end, int buffe
     mystrlcpy(dest, src+start, MIN(bufferlen,end-start+1));
 }
 
-FILE *mypopen(const char *befehl, const char *typ, ...) __attribute__ ((__format__ (__printf__, 1, 3)));
-FILE *mypopen(const char *befehl, const char *typ, ...) {
-    char *string;
-    va_list args;
-    va_start(args, typ);
-    int retval = vasprintf(&string, befehl, args);
-    int myerrno = errno;
-    va_end(args);
-    if (-1 == retval) {
-	fprintf(stderr, "%s error: could not parse command '%s': %s\n", mybasename(runtime.argv0), befehl, strerror(myerrno));
-	exit (EXIT_FAILURE);
-    }
-    FILE *f = popen(string, typ);
-
-    // be nice and exit on error over here
-    if (NULL == f) {
-	fprintf(stderr, "%s error: could not exec command '%s': %s\n", mybasename(runtime.argv0), string, strerror(errno));
-	exit(EXIT_FAILURE);
-    }
-    free(string);
-
-    return f;
-}
-
 
 void *thread_copy_infile_to_outpipe(void *args) {
     assert(args);
@@ -222,7 +198,6 @@ void *thread_copy_infile_to_outpipe(void *args) {
 
     return args;
 }
-
 
 
 FILE *diff_open() {
