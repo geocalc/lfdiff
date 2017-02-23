@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([lfdiff], [0.9], [jh@mwerk.net])
+AC_INIT([lfdiff], [0.10], [jh@mwerk.net])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 AC_CONFIG_SRCDIR([src/diffmanager.c])
 AC_CONFIG_MACRO_DIRS([m4])
