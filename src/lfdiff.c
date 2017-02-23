@@ -60,6 +60,11 @@
 
 static const long long int default_splitsize = 2l*1024*1024*1024; // 2GB
 
+enum {
+    FILE_A = 0,
+    FILE_B = 1,
+    MAX_FILE
+};
 
 
 const char *mybasename(const char *path) {
@@ -72,8 +77,7 @@ struct config {
     long long int splitsize;
     int be_verbose;
     const char *outfilename;
-    const char *filename1;
-    const char *filename2;
+    const char *filename[MAX_FILE];
 } config = {0};
 
 
@@ -86,8 +90,7 @@ struct thread_copy_buffer_args {
 
 
 struct runtime {
-    FILE *fileA;
-    FILE *fileB;
+    FILE *infile[MAX_FILE];
     const char *argv0;
     unsigned long currentlineFileA;
     unsigned long currentlineFileB;
@@ -95,8 +98,8 @@ struct runtime {
     unsigned long lineOffsetFileB;
     struct diffmanager_s *diffmanager;
     pid_t pid;
-    struct thread_copy_buffer_args threadbuffer[2];
-    pthread_t threads[2];
+    struct thread_copy_buffer_args threadbuffer[MAX_FILE];
+    pthread_t threads[MAX_FILE];
 } runtime = {0};
 
 
@@ -203,19 +206,17 @@ void *thread_copy_infile_to_outpipe(void *args) {
 FILE *diff_open() {
 
     static const int fdbuffsize = sizeof("/dev/fd/")+9+1;	// = strlen("/dev/fd/") + '\0' + strlen(MAX_INT) + '\0' = sizeof("/dev/fd/")+9+1
-    int input1pipe[2];
-    int input2pipe[2];
+    int inputpipe[MAX_FILE][2];
     int outputpipe[2];
-    char fdbuff1[fdbuffsize];
-    char fdbuff2[fdbuffsize];
+    char fdbuff[MAX_FILE][fdbuffsize];
 
-    int retval = pipe(input1pipe);
+    int retval = pipe(inputpipe[FILE_A]);
     if (-1 == retval) {
 	fprintf(stderr, "error: can not create pipe: %s\n", strerror(errno));
 	abort();
     }
 
-    retval = pipe(input2pipe);
+    retval = pipe(inputpipe[FILE_B]);
     if (-1 == retval) {
 	fprintf(stderr, "error: can not create pipe: %s\n", strerror(errno));
 	abort();
@@ -236,35 +237,35 @@ FILE *diff_open() {
 	// this is child task
 
 	// close writing channel of input pipe, reading of output
-	close(input1pipe[1]);
-	close(input2pipe[1]);
+	close(inputpipe[FILE_A][1]);
+	close(inputpipe[FILE_B][1]);
 	close(outputpipe[0]);
 
 	// set output channel to pipe, omit input and error channel
 	dup2(outputpipe[1], STDOUT_FILENO);
 	close(outputpipe[1]);	// close pipe file handle, we already got stdout
 
-	retval = snprintf(fdbuff1, sizeof(fdbuff1), "/dev/fd/%d", input1pipe[0]);
+	retval = snprintf(fdbuff[FILE_A], sizeof(fdbuff[FILE_A]), "/dev/fd/%d", inputpipe[FILE_A][0]);
 	if (-1 >= retval) {
 	    fprintf(stderr, "error: can not print to string: %s\n", strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
-	if (sizeof(fdbuff1) <= retval) {
-	    fprintf(stderr, "error: can not print to buffer, number too large: %d", input1pipe[0]);
+	if (sizeof(fdbuff[FILE_A]) <= retval) {
+	    fprintf(stderr, "error: can not print to buffer, number too large: %d", inputpipe[FILE_A][0]);
 	    exit(EXIT_FAILURE);
 	}
 
-	retval = snprintf(fdbuff2, sizeof(fdbuff2), "/dev/fd/%d", input2pipe[0]);
+	retval = snprintf(fdbuff[FILE_B], sizeof(fdbuff[FILE_B]), "/dev/fd/%d", inputpipe[FILE_B][0]);
 	if (-1 >= retval) {
 	    fprintf(stderr, "error: can not print to string: %s\n", strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
-	if (sizeof(fdbuff2) <= retval) {
-	    fprintf(stderr, "error: can not print to buffer, number too large: %d", input2pipe[0]);
+	if (sizeof(fdbuff[FILE_B]) <= retval) {
+	    fprintf(stderr, "error: can not print to buffer, number too large: %d", inputpipe[FILE_B][0]);
 	    exit(EXIT_FAILURE);
 	}
 
-	execlp("diff", "diff", fdbuff1, fdbuff2, (char *) NULL);
+	execlp("diff", "diff", fdbuff[FILE_A], fdbuff[FILE_B], (char *) NULL);
 	fprintf(stderr, "error: can not exec: %s\n", strerror(errno));
 	abort();
     }
@@ -272,17 +273,17 @@ FILE *diff_open() {
     // this is parent task
 
     // close reading channel of input pipe, writing of output
-    close(input1pipe[0]);
-    close(input2pipe[0]);
+    close(inputpipe[FILE_A][0]);
+    close(inputpipe[FILE_B][0]);
     close(outputpipe[1]);
 
     // start the feeding threads
-    runtime.threadbuffer[0].outfile = fdopen(input1pipe[1], "w");
+    runtime.threadbuffer[0].outfile = fdopen(inputpipe[FILE_A][1], "w");
     if (NULL == runtime.threadbuffer[0].outfile) {
 	fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
 	abort();
     }
-    runtime.threadbuffer[1].outfile = fdopen(input2pipe[1], "w");
+    runtime.threadbuffer[1].outfile = fdopen(inputpipe[FILE_B][1], "w");
     if (NULL == runtime.threadbuffer[1].outfile) {
 	fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
 	abort();
@@ -318,7 +319,7 @@ int diff_close(FILE *file) {
     int i;
 
     /* wait for those threads */
-    for (i=0; i<2; i++)
+    for (i=0; i<MAX_FILE; i++)
     {
 	retval = pthread_join(runtime.threads[i], NULL);
 	if (retval)
@@ -480,46 +481,46 @@ int main(int argc, char **argv) {
 	usage(argv[0]);
 	exit(EXIT_FAILURE);
     }
-    config.filename1 = argv[optind++];
+    config.filename[FILE_A] = argv[optind++];
 
     if (optind >= argc) {
 	fprintf(stderr, "INPUT2 missing\n");
 	usage(argv[0]);
 	exit(EXIT_FAILURE);
     }
-    config.filename2 = argv[optind++];
+    config.filename[FILE_B] = argv[optind++];
 
-    if (!strcmp(config.filename1, config.filename2)) {
+    if (!strcmp(config.filename[FILE_A], config.filename[FILE_B])) {
 	// input is twice the same file name or twice stdin
 	fprintf(stderr, "no need to compare same files\n");
 	exit(EXIT_FAILURE);
     }
 
 
-    if (strcmp(config.filename1, "-")) {
+    if (strcmp(config.filename[FILE_A], "-")) {
 	// file is regular
-	runtime.fileA = fopen(config.filename1, "r");
-	if (NULL == runtime.fileA) {
-	    fprintf(stderr, "error: could not open input file '%s': %s\n", config.filename1, strerror(errno));
+	runtime.infile[FILE_A] = fopen(config.filename[FILE_A], "r");
+	if (NULL == runtime.infile[FILE_A]) {
+	    fprintf(stderr, "error: could not open input file '%s': %s\n", config.filename[FILE_A], strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
     }
     else {
 	// file is stdin
-	runtime.fileA = stdin;
+	runtime.infile[FILE_A] = stdin;
     }
 
-    if (strcmp(config.filename2, "-")) {
+    if (strcmp(config.filename[FILE_B], "-")) {
 	// file is regular
-	runtime.fileB = fopen(config.filename2, "r");
-	if (NULL == runtime.fileB) {
-	    fprintf(stderr, "error: could not open input file '%s': %s\n", config.filename2, strerror(errno));
+	runtime.infile[FILE_B] = fopen(config.filename[FILE_B], "r");
+	if (NULL == runtime.infile[FILE_B]) {
+	    fprintf(stderr, "error: could not open input file '%s': %s\n", config.filename[FILE_B], strerror(errno));
 	    exit(EXIT_FAILURE);
 	}
     }
     else {
 	// file is stdin
-	runtime.fileB = stdin;
+	runtime.infile[FILE_B] = stdin;
     }
 
     runtime.diffmanager = diffmanager_new();
@@ -548,13 +549,13 @@ int main(int argc, char **argv) {
     for (i=1; i; i++) { // exit loop if both split files return 0 bytes
 	FILE *splitinput;
 
-	if (feof(runtime.fileA) && feof(runtime.fileB))
+	if (feof(runtime.infile[FILE_A]) && feof(runtime.infile[FILE_B]))
 	    break;
 
 	memset(&runtime.threadbuffer, 0, sizeof(runtime.threadbuffer));
-	runtime.threadbuffer[0].infile = runtime.fileA;
+	runtime.threadbuffer[0].infile = runtime.infile[FILE_A];
 	runtime.threadbuffer[0].max_copy_bytes = config.splitsize;
-	runtime.threadbuffer[1].infile = runtime.fileB;
+	runtime.threadbuffer[1].infile = runtime.infile[FILE_B];
 	runtime.threadbuffer[1].max_copy_bytes = config.splitsize;
 
 	PRINT_VERBOSE(stderr, "diff input %d\n", i);
