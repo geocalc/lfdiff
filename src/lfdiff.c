@@ -66,6 +66,11 @@ enum {
     MAX_FILE
 };
 
+enum {
+    PIPE_READ_CHANNEL = 0,
+    PIPE_WRITE_CHANNEL = 1,
+    MAX_PIPE_CHANNEL
+};
 
 const char *mybasename(const char *path) {
     const char *retval = rindex(path, '/');
@@ -204,8 +209,8 @@ void *thread_copy_infile_to_outpipe(void *args) {
 FILE *diff_open() {
 
     static const int fdbuffsize = sizeof("/dev/fd/")+9+1;	// = strlen("/dev/fd/") + '\0' + strlen(MAX_INT) + '\0' = sizeof("/dev/fd/")+9+1
-    int inputpipe[MAX_FILE][2];
-    int outputpipe[2];
+    int inputpipe[MAX_FILE][MAX_PIPE_CHANNEL];
+    int outputpipe[MAX_PIPE_CHANNEL];
     char fdbuff[MAX_FILE][fdbuffsize];
     int retval;
     int i;
@@ -233,24 +238,24 @@ FILE *diff_open() {
 	// this is child task
 
 	// close reading channel of output pipe
-	close(outputpipe[0]);
+	close(outputpipe[PIPE_READ_CHANNEL]);
 
-	// set "diff" output channel to pipe, omit input and error channel
-	dup2(outputpipe[1], STDOUT_FILENO);
-	close(outputpipe[1]);	// close pipe file handle, we already got stdout
+	// set "diff" output channel to pipe, omit "diff" input and error channel
+	dup2(outputpipe[PIPE_WRITE_CHANNEL], STDOUT_FILENO);
+	close(outputpipe[PIPE_WRITE_CHANNEL]);	// close pipe file handle, we already got stdout
 
 	for (i=0; i<MAX_FILE; i++) {
 	    // close writing channel of input pipe
-	    close(inputpipe[i][1]);
+	    close(inputpipe[i][PIPE_WRITE_CHANNEL]);
 
 	    // formulate input file descriptor for extern "diff" program
-	    retval = snprintf(fdbuff[i], sizeof(fdbuff[i]), "/dev/fd/%d", inputpipe[i][0]);
+	    retval = snprintf(fdbuff[i], sizeof(fdbuff[i]), "/dev/fd/%d", inputpipe[i][PIPE_READ_CHANNEL]);
 	    if (-1 >= retval) {
 		fprintf(stderr, "error: can not print to string: %s\n", strerror(errno));
 		abort();
 	    }
 	    if (sizeof(fdbuff[i]) <= retval) {
-		fprintf(stderr, "error: can not print to buffer, number too large: %d", inputpipe[i][0]);
+		fprintf(stderr, "error: can not print to buffer, number too large: %d", inputpipe[i][PIPE_READ_CHANNEL]);
 		abort();
 	    }
 	}
@@ -264,14 +269,14 @@ FILE *diff_open() {
     // this is parent task
 
     // close writing channel of output pipe
-    close(outputpipe[1]);
+    close(outputpipe[PIPE_WRITE_CHANNEL]);
 
     for (i=0; i<MAX_FILE; i++) {
 	// close reading channel of input pipe
-	close(inputpipe[i][0]);
+	close(inputpipe[i][PIPE_READ_CHANNEL]);
 
 	// create FILE* descriptor out of file descriptor
-	runtime.threadbuffer[i].outfile = fdopen(inputpipe[i][1], "w");
+	runtime.threadbuffer[i].outfile = fdopen(inputpipe[i][PIPE_WRITE_CHANNEL], "w");
 	if (NULL == runtime.threadbuffer[i].outfile) {
 	    fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
 	    abort();
@@ -286,7 +291,7 @@ FILE *diff_open() {
 	}
     }
 
-    FILE *ret = fdopen(outputpipe[0], "r");
+    FILE *ret = fdopen(outputpipe[PIPE_READ_CHANNEL], "r");
     if (NULL == ret) {
 	fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
 	abort();
