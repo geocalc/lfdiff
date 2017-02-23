@@ -43,6 +43,7 @@
 #include <stdarg.h>
 #include <regex.h>
 #include <limits.h>
+#include <pthread.h>
 
 
 #define MIN(a,b)	((a)<(b)?(a):(b))
@@ -76,14 +77,29 @@ struct config {
 } config = {0};
 
 
+struct thread_copy_buffer_args {
+    FILE *infile;
+    FILE *outfile;
+    long long int max_copy_bytes;
+    long long int lines_copied;
+};
+
+
 struct runtime {
+    FILE *fileA;
+    FILE *fileB;
     const char *argv0;
     unsigned long currentlineFileA;
     unsigned long currentlineFileB;
     unsigned long lineOffsetFileA;
     unsigned long lineOffsetFileB;
     struct diffmanager_s *diffmanager;
+    pid_t pid;
+    struct thread_copy_buffer_args threadbuffer[2];
+    pthread_t threads[2];
 } runtime = {0};
+
+
 
 void usage(const char *argv0) {
 
@@ -148,6 +164,235 @@ FILE *mypopen(const char *befehl, const char *typ, ...) {
 
     return f;
 }
+
+
+void *thread_copy_infile_to_outpipe(void *args) {
+    assert(args);
+
+    struct thread_copy_buffer_args *myargs = (struct thread_copy_buffer_args *) args;
+    assert(myargs->infile);
+    assert(myargs->outfile);
+    assert(myargs->max_copy_bytes >= 0);
+
+    long long int copy_bytes = 0;
+    char *line = NULL;
+    size_t n;
+
+    while (!feof(myargs->infile) && copy_bytes < myargs->max_copy_bytes) {
+
+	int retval = getline(&line, &n, myargs->infile);
+	if (1 > retval) {
+	    if (errno) {
+		fprintf(stderr, "error: reading from input file: %s\n", strerror(errno));
+	    }
+	    else if (feof(myargs->infile)) {
+		// we have reached the end of input.
+		// why didn't we notice earlier at the top of the loop?
+		break;
+	    }
+	    else {
+		fprintf(stderr, "error: no valid input from input file\n");
+	    }
+	    abort();
+	}
+
+	retval = fputs(line, myargs->outfile);
+	if (EOF==retval) {
+	    fprintf(stderr, "error: writing to output buffer: %s\n", strerror(ferror(myargs->outfile)));
+	    abort();
+	}
+	copy_bytes += strlen(line);
+	myargs->lines_copied++;
+
+    }
+
+    free(line);
+
+    // close this over here, so the external program gets EOF and is able to
+    // close its output stream itself. Which is recognized by this program in
+    // its receiving data loop where we evaluate EOF
+    int retval = fclose(myargs->outfile);
+    if (retval) {
+	fprintf(stderr, "error: can not close stream: %s\n", strerror(errno));
+	abort();
+    }
+    myargs->outfile = NULL;
+
+    return args;
+}
+
+
+
+FILE *diff_open() {
+
+    static const int fdbuffsize = sizeof("/dev/fd/")+9+1;	// = strlen("/dev/fd/") + '\0' + strlen(MAX_INT) + '\0' = sizeof("/dev/fd/")+9+1
+    int input1pipe[2];
+    int input2pipe[2];
+    int outputpipe[2];
+    char fdbuff1[fdbuffsize];
+    char fdbuff2[fdbuffsize];
+
+    int retval = pipe(input1pipe);
+    if (-1 == retval) {
+	fprintf(stderr, "error: can not create pipe: %s\n", strerror(errno));
+	abort();
+    }
+
+    retval = pipe(input2pipe);
+    if (-1 == retval) {
+	fprintf(stderr, "error: can not create pipe: %s\n", strerror(errno));
+	abort();
+    }
+
+    retval = pipe(outputpipe);
+    if (-1 == retval) {
+	fprintf(stderr, "error: can not create pipe: %s\n", strerror(errno));
+	abort();
+    }
+
+    runtime.pid = fork();
+    if (-1 == runtime.pid) {
+	fprintf(stderr, "error: can not fork: %s\n", strerror(errno));
+	abort();
+    }
+    if (0 == runtime.pid) {
+	// this is child task
+
+	// close writing channel of input pipe, reading of output
+	close(input1pipe[1]);
+	close(input2pipe[1]);
+	close(outputpipe[0]);
+
+	// set output channel to pipe, omit input and error channel
+	dup2(outputpipe[1], STDOUT_FILENO);
+	close(outputpipe[1]);	// close pipe file handle, we already got stdout
+
+	retval = snprintf(fdbuff1, sizeof(fdbuff1), "/dev/fd/%d", input1pipe[0]);
+	if (-1 >= retval) {
+	    fprintf(stderr, "error: can not print to string: %s\n", strerror(errno));
+	    exit(EXIT_FAILURE);
+	}
+	if (sizeof(fdbuff1) <= retval) {
+	    fprintf(stderr, "error: can not print to buffer, number too large: %d", input1pipe[0]);
+	    exit(EXIT_FAILURE);
+	}
+
+	retval = snprintf(fdbuff2, sizeof(fdbuff2), "/dev/fd/%d", input2pipe[0]);
+	if (-1 >= retval) {
+	    fprintf(stderr, "error: can not print to string: %s\n", strerror(errno));
+	    exit(EXIT_FAILURE);
+	}
+	if (sizeof(fdbuff2) <= retval) {
+	    fprintf(stderr, "error: can not print to buffer, number too large: %d", input2pipe[0]);
+	    exit(EXIT_FAILURE);
+	}
+
+	execlp("diff", "diff", fdbuff1, fdbuff2, (char *) NULL);
+	fprintf(stderr, "error: can not exec: %s\n", strerror(errno));
+	abort();
+    }
+
+    // this is parent task
+
+    // close reading channel of input pipe, writing of output
+    close(input1pipe[0]);
+    close(input2pipe[0]);
+    close(outputpipe[1]);
+
+    // start the feeding threads
+    runtime.threadbuffer[0].outfile = fdopen(input1pipe[1], "w");
+    if (NULL == runtime.threadbuffer[0].outfile) {
+	fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
+	abort();
+    }
+    runtime.threadbuffer[1].outfile = fdopen(input2pipe[1], "w");
+    if (NULL == runtime.threadbuffer[1].outfile) {
+	fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
+	abort();
+    }
+
+    retval = pthread_create(&runtime.threads[0], NULL, thread_copy_infile_to_outpipe, &runtime.threadbuffer[0]);
+    if (retval)
+    {
+	fprintf(stderr, "error: can not create thread: %s\n", strerror(errno));
+	abort();
+    }
+
+    retval = pthread_create(&runtime.threads[1], NULL, thread_copy_infile_to_outpipe, &runtime.threadbuffer[1]);
+    if (retval)
+    {
+	fprintf(stderr, "error: can not create thread: %s\n", strerror(errno));
+	abort();
+    }
+
+    FILE *ret = fdopen(outputpipe[0], "r");
+    if (NULL == ret) {
+	fprintf(stderr, "error: can not open file descriptor: %s\n", strerror(errno));
+	abort();
+    }
+
+    return ret;
+}
+
+
+int diff_close(FILE *file) {
+
+    int retval;
+    int i;
+
+    /* wait for those threads */
+    for (i=0; i<2; i++)
+    {
+	retval = pthread_join(runtime.threads[i], NULL);
+	if (retval)
+	{
+	    fprintf(stderr, "error: can not join thread %d: %s\n", i, strerror(errno));
+	    abort();
+	}
+	runtime.threads[i] = 0;
+
+	// stream is already closed in thread thread_copy_infile_to_outpipe()
+    }
+
+    retval = fclose(file);
+    if (retval) {
+	fprintf(stderr, "error: can not close stream: %s\n", strerror(errno));
+	abort();
+    }
+
+    int wstatus;
+    retval = waitpid(runtime.pid, &wstatus, 0);
+    if (-1 == retval) {
+	fprintf(stderr, "error: can not wait for child process: %s\n", strerror(errno));
+	abort();
+    }
+    if (WIFEXITED(wstatus)) {
+	if (0 == WEXITSTATUS(wstatus)) {
+	    // all ok
+	    // input files are the same
+	}
+	else if (1 == WEXITSTATUS(wstatus)) {
+	    // all ok
+	    // input files differ
+	}
+	else {
+	    // program did not exit with value 0
+	    fprintf(stderr, "error: abnormal exit of diff, return value %d\n", WEXITSTATUS(wstatus));
+	    abort();
+	}
+    }
+    else {
+	// program did not exit with value 0
+	fprintf(stderr, "error: abnormal exit of diff\n");
+	abort();
+    }
+
+    runtime.pid = 0;
+
+    return 0;
+}
+
+
 
 int main(int argc, char **argv) {
     int retval;
