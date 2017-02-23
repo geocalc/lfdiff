@@ -11,6 +11,9 @@ AC_CONFIG_MACRO_DIRS([m4])
 AC_PROG_CC
 AM_PROG_AR
 AC_PROG_LIBTOOL
+# used by ltmain.sh
+AC_PROG_CXX
+AC_PROG_RANLIB
 
 # Checks for libraries.
 
@@ -27,8 +30,18 @@ AC_ARG_ENABLE([test],
 AS_IF([test "x$enable_test" != xno],
             [PKG_CHECK_MODULES([CHECK], [check])])
 
+# check for pthreads
+# see https://airtower.wordpress.com/2010/06/14/autotools-and-pthreads/
+# and http://www.gnu.org/software/autoconf-archive/ax_pthread.html
+# note gentoo: using sys-devel/autoconf-archive
+AX_PTHREAD
+LIBS="$PTHREAD_LIBS $LIBS"
+CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+CC="$PTHREAD_CC"
+
 # Checks for header files.
 AC_HEADER_STDC
+AC_HEADER_ASSERT
 AC_CHECK_HEADERS([limits.h stdlib.h string.h strings.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
@@ -36,8 +49,10 @@ AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
+AC_FUNC_FORK
 AC_FUNC_MALLOC
-AC_CHECK_FUNCS([regcomp strdup strerror])
+AC_FUNC_REALLOC
+AC_CHECK_FUNCS([dup2 memset regcomp strdup strerror])
 
 # Output files
 AC_CONFIG_HEADERS([config.h])
