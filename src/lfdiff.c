@@ -57,7 +57,7 @@
     } while (0)
 
 
-static const long default_splitsize = 2l*1024*1024*1024; // 2GB
+static const long long int default_splitsize = 2l*1024*1024*1024; // 2GB
 
 
 
@@ -68,7 +68,7 @@ const char *mybasename(const char *path) {
 }
 
 struct config {
-    long splitsize;
+    long long int splitsize;
     int be_verbose;
     const char *outfilename;
     const char *filename1;
@@ -91,7 +91,7 @@ void usage(const char *argv0) {
 	    "\t-h: print this help\n"
 	    "\t-V: print version\n"
 	    "\t-o: write output to OUTFILE instead of stdout\n"
-	    "\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: %ld byte)\n"
+	    "\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: %lld byte)\n"
 	    "\t-v: be verbose\n"
 	    , mybasename(argv0), default_splitsize
     );
@@ -197,26 +197,26 @@ int main(int argc, char **argv) {
 
 		// extract data
 		myregexbuffercpy(buffer, optarg, matchptr[1].rm_so, matchptr[1].rm_eo, bufferlen);
-		config.splitsize = atol(buffer);
+		config.splitsize = atoll(buffer);
 		if (matchptr[2].rm_so != matchptr[2].rm_eo) {
 		    myregexbuffercpy(buffer, optarg, matchptr[2].rm_so, matchptr[2].rm_eo, bufferlen);
 		    switch (*buffer) {
 		    case 'G':
-			if (config.splitsize >= LONG_MAX/1024) {
+			if (config.splitsize >= LLONG_MAX/1024) {
 			    fprintf(stderr, "Integer overflow error parsing option -s '%s'\n", optarg);
 			    exit(EXIT_FAILURE);
 			}
 			config.splitsize *= 1024;
 			// no break, fall through
 		    case 'M':
-			if (config.splitsize >= LONG_MAX/1024) {
+			if (config.splitsize >= LLONG_MAX/1024) {
 			    fprintf(stderr, "Integer overflow error parsing option -s '%s'\n", optarg);
 			    exit(EXIT_FAILURE);
 			}
 			config.splitsize *= 1024;
 			// no break, fall through
 		    case 'k':
-			if (config.splitsize >= LONG_MAX/1024) {
+			if (config.splitsize >= LLONG_MAX/1024) {
 			    fprintf(stderr, "Integer overflow error parsing option -s '%s'\n", optarg);
 			    exit(EXIT_FAILURE);
 			}
