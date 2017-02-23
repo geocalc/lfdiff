@@ -543,8 +543,9 @@ int main(int argc, char **argv) {
 	exit(EXIT_FAILURE);
     }
 
-    int i;
-    for (i=1; i; i++) { // exit loop if both split files return 0 bytes
+
+    int iteration;
+    for (iteration=1; iteration; iteration++) { // exit loop if both split files return 0 bytes
 	FILE *splitinput;
 
 	if (feof(runtime.infile[FILE_A]) && feof(runtime.infile[FILE_B]))
@@ -556,7 +557,7 @@ int main(int argc, char **argv) {
 	runtime.threadbuffer[FILE_B].infile = runtime.infile[FILE_B];
 	runtime.threadbuffer[FILE_B].max_copy_bytes = config.splitsize;
 
-	PRINT_VERBOSE(stderr, "diff input %d\n", i);
+	PRINT_VERBOSE(stderr, "diff input %d\n", iteration);
 	splitinput = diff_open();
 	while (!feof(splitinput)) {
 	    retval = getline(&line, &n, splitinput);
