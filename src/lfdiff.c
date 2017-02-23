@@ -183,8 +183,7 @@ int main(int argc, char **argv) {
 		assert(buffer);
 		(void) regerror (retval, &regex, buffer, len);
 		fprintf(stderr, "Could not compile regular expression: %s", buffer);
-		free(buffer);
-		exit(EXIT_FAILURE);
+		abort();
 	    }
 
 	    regmatch_t matchptr[3];
@@ -243,8 +242,7 @@ int main(int argc, char **argv) {
 		assert(buffer);
 		(void) regerror (retval, &regex, buffer, len);
 		fprintf(stderr, "Could not compile regular expression: %s", buffer);
-		free(buffer);
-		exit(EXIT_FAILURE);
+		abort();
 	    }
 	    regfree(&regex);
 	}
@@ -311,8 +309,7 @@ int main(int argc, char **argv) {
 	assert(buffer);
 	(void) regerror (retval, &regex, buffer, len);
 	fprintf(stderr, "Could not compile regular expression: %s", buffer);
-	free(buffer);
-	exit(EXIT_FAILURE);
+	abort();
     }
 
     FILE *outfile = config.outfilename?fopen(config.outfilename, "w"):stdout;
@@ -373,7 +370,7 @@ int main(int argc, char **argv) {
 		else {
 		    fprintf(stderr, "%s error: no valid input from 'bash -c \"diff <(split -n l/%d/%d '%s') <(split -n l/%d/%d '%s')\"'\n", mybasename(argv[0]), i, max_i, config.filename1, i, max_i, config.filename2);
 		}
-		exit(EXIT_FAILURE);
+		abort();
 	    }
 	    // note: line includes a newline character at the end
 
@@ -436,12 +433,12 @@ int main(int argc, char **argv) {
 			// no break, fall through
 		    default:
 			fprintf(stderr, "%s error: can not recognise diff line \"%s\"\n", mybasename(argv[0]), line);
-			exit(EXIT_FAILURE);
+			abort();
 		    }
 		}
 		else {
 		    fprintf(stderr, "%s error: can not recognise diff line \"%s\"\n", mybasename(argv[0]), line);
-		    exit(EXIT_FAILURE);
+		    abort();
 		}
 	    }
 	    else
@@ -451,8 +448,7 @@ int main(int argc, char **argv) {
 		assert(buffer);
 		(void) regerror (retval, &regex, buffer, len);
 		fprintf(stderr, "Could not compile regular expression: %s", buffer);
-		free(buffer);
-		exit(EXIT_FAILURE);
+		abort();
 	    }
 
 	}
