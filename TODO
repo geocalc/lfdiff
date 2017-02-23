@@ -1,14 +1,3 @@
-1) handle input from stdin
-
-on the command line set input file = '-' as standard input channel.
-Then get the average line count of the second file 
-( = spliz size * (line cnt / file size) ). Now cut of average count line numbers
-from stdin and feed to the external diff program on its stdin channel along 
-with the split chunk from the second file.
-
-We need a shell call with stdin and stdout connected to the lfdiff program.
-
-
 2) handle missing newline at the end of file
 
 if a new line is missing on one of the files diff prints an additional message
