@@ -109,14 +109,15 @@ struct runtime {
 
 void usage(const char *argv0) {
 
-    fprintf(stderr, "usage: %s [-h] [-V] [-v] [-o OUTPUT] [-s SPLITSIZE] INPUT1 INPUT2\n"
+    fprintf(stderr, "usage: %s [-h] [-V] [-v] [-o OUTPUT] [-s SPLITSIZE] [--] INPUT1 INPUT2\n"
 	    "\t-h: print this help\n"
 	    "\t-V: print version\n"
 	    "\t-o: write output to OUTFILE instead of stdout\n"
 	    "\t-s: split INPUT* into SPLITSIZE chunks. SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. (default: %lld byte)\n"
 	    "\t-v: be verbose\n"
-	    "\tINPUT1 and INPUT2 can be any file, socket or pipe which one can read from\n"
-	    "\tUse '-' to read from standard input\n"
+	    "\t--: end option parsing. Next argument is expected to describe INPUT1\n"
+	    "INPUT1 and INPUT2 can be any file, socket or pipe which one can read from.\n"
+	    "Use '-' to read from standard input.\n"
 	    , mybasename(argv0), default_splitsize
     );
 
@@ -371,6 +372,10 @@ int main(int argc, char **argv) {
 
     while ((opt = getopt(argc, argv, "hVvo:s:")) != -1)
     {
+	if ('-' == opt)
+	    /* '--' option, end processing */
+	    break;
+
 	switch (opt)
 	{
 	case 'h':
