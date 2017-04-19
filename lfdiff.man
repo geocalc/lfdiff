@@ -1,0 +1,51 @@
+.TH LFDIFF 1
+.SH NAME
+lfdiff \- compare very large files
+.SH SYNOPSIS
+.B lfdiff
+[\fB\-h\fR]
+[\fB\-v\fR]
+[\fB\-V\fR]
+[\fB\-o\fR \fIOUTFILE\fR]
+[\fB\-s\fR \fISPLITSIZE\fR]
+[\fB\--\fR]
+.IR INPUT1
+.IR INPUT2
+.SH DESCRIPTION
+.B lfdiff
+diff large files using a minimal amount of memory.
+The INPUT is split into smaller chunks and fed to the 
+.BR diff (1) 
+utility.
+INPUT1 and INPUT2 can be any file, socket or pipe which one can read from.
+The special file name '-' sets lfdiff to read from standard input.
+The output format is traditional diff only.
+.SH OPTIONS
+.TP
+.BR \-h
+print this help.
+.TP
+.BR \-v
+be verbose.
+.TP
+.BR \-V
+print version.
+.TP
+.BR \-o
+write output to OUTFILE instead of stdout.
+.TP
+.BR \-s
+split INPUT* into SPLITSIZE chunks. 
+SPLITSIZE can be appended k,kB,M,MB,G,GB to multiply 1024, 1024², 1024³. 
+(default: 2GB)
+.TP
+.BR \--
+end option parsing. The next argument is expected to describe INPUT1.
+.SH BUGS
+lfdiff works best with a small amount of differences between the two files.
+If there are large differences the amount of memory used may increase
+significantly.
+.SH AUTHOR
+Jörg Habenicht <jh at mwerk dot net>
+.SH "SEE ALSO"
+.BR diff (1)
