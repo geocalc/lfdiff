@@ -1,3 +1,10 @@
+1) push intermediate results early
+
+If we have a definite block differing which does not change during the
+further inspection of the two files we can write out the diff block and free
+the memory used. This way we can keep the memory usage very low, expecting
+around some hundred kilo bytes memory usage overall.
+
 2) handle missing newline at the end of file
 
 if a new line is missing on one of the files diff prints an additional message
