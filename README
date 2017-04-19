@@ -1,0 +1,26 @@
+lfdiff - Large File Diff
+
+This program is able to create diffs of files larger than 30GB or 7 billion
+lines.
+The traditional diff algorithm has an order of O(n²) where n corresponds to
+the size of the files. Newer algorithms have orders of O(n*log(n)) or even
+O(n). But still a run with the GNU diff utility comparing two files of 40GB
+need approximately 100GB RAM.
+This program feeds small slices of the two files to the "diff" program which
+in turn needs much less memory. The size of the slieces is configurable, so
+the amount of RAM needed can be adjusted for low memory machines.
+
+Recent measurements of the amount of memory comparing two files of 40GB each
+resulted in less than 8GB RAM for the whole diff run. A further improovement
+in the splitting algorithm can result in some megabytes RAM usage for multi
+GB file sizes. Consult the source code for further information.
+
+The diff output is traditional diff:
+HEADER
+> lines added
+---
+< lines removed
+Other formats are not considered.
+
+This program shall ease the comparison of very large files.
+Have fun.
